@@ -1,0 +1,17 @@
+To do:
+
+  * Read syntax colors from LS_COLORS.
+
+  * Find out the minimum required versions of Vim and Neovim.
+
+  * Add documentation.
+
+
+Known bugs:
+
+  * Vim's sort() and :sort cannot combine sorting by name and number:
+        file1 file10 file2  -x->  file1 file2 file10
+
+  * Vim's rename() fails to rename missing symlinks.
+
+  * Timestamps fail when changes occur in less than a second.

@@ -1,0 +1,164 @@
+filemanager - file manager plugin for Vim and Neovim
+====================================================
+
+
+filemanager is a tree file explorer and manager plugin for Vim and 
+Neovim written from scratch to be as simple and straightforward as 
+possible while providing a rich feature set to cover most, if not all, 
+tasks of a file manager built into a text editor. Its main focus is 
+to never do anything unexpected or unreasonable.
+
+
+Installation
+------------
+filemanager has no dependencies apart from Vim or Neovim itself. To 
+install it, use a plugin manager of your choosing or simply copy 
+plugin/filemanager.vim into your local Vim runtime directory.
+
+
+Features
+--------
+  * Browse directories, open files to the side or above/below, create 
+    files and directories, rename and delete them, open them externally,
+  * Run shell commands in current tree root or in the directory under 
+    the cursor; open terminal window in these directories,
+  * Hide files ignored by Git,
+  * Filter tree contents by regex pattern with support for nested filters,
+  * Mark files interactively or by regex pattern,
+  * Perform actions on marked files: rename, delete, or run an arbitrary 
+    shell command,
+  * Rename files simply by editing lines in the directory tree,
+  * Save bookmarks within the current session or in a file to share them 
+    between sessions. Loaded and saved automatically,
+  * Cursor position kept and restored based on path during all actions 
+    including renaming; renaming directories doesn't fold them in the tree,
+  * Open independent buffers with the same directory,
+  * One primary buffer per tab and any number of auxiliary ones 
+    which can't spawn new windows by mappings,
+  * No multi-line motion keys remapped.
+
+Further functionality is better presented by mappings and commands themselves:
+
+  :L :V :H                set orientation and resize primary filemanager window.
+  :L :V :H [{dir}]        open directory {dir} in new filemanager window.
+  :L! :V! :H!             close primary filemanager window.
+
+  :Filter {pat}           add a pattern to filter directory tree contents.
+  :Filter                 remove last applied pattern.
+  :Filter! [{pat}]        clear all filters and add {pat}, if specified.
+
+  :Mark[!] {pat}          mark files matching {pat} or unmark if ! is present.
+
+  :Bookmark               print saved bookmarks.
+  :Bookmark {name}        restore bookmark {name}.
+  :Bookmark! {name}       save current state to bookmark {name}.
+  :Bookmark write         write bookmarks to file.
+  :Bookmark load          load bookmarks from file.
+
+  :Delbookmark[!] {name}  delete bookmark {name} from current session
+                          and from file if ! is present.
+  :Delbookmark!           delete all bookmarks from current session
+  :Delbookmark file       delete all bookmarks from file
+  :Delbookmark! file      delete all bookmarks from current session and file
+
+  Writing and loading bookmarks doesn't destroy bookmarks undefined in 
+  either the current session or file. Bookmarks are loaded from file on 
+  Vim startup and written on exit, the rest should be controlled by the 
+  user.
+
+  When switching between bookmarks, filemanager saves backup bookmarks 
+  so that you never lose any older state. Backup bookmarks are also 
+  saved when a filemanager buffer is closed.
+
+  Bookmarks store all buffer configuration options (mappings gr, gm, gS, 
+  gI, gH, gG), marked files, filters, open directories, and the cursor 
+  position.
+
+  Available bookmark names include almost all the symbols on the keyboard:
+  '"0123456789qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM[]{};:,.<>/?\!@#$%^&*()-_=+`~
+
+
+  , . < >               scroll horizontally one column / half a screen
+  F                     :Filter
+  f                     open file or descend into directory by name
+  d                     create new directory and unfold it
+  Enter                 open file or fold/unfold directory under the cursor
+  v                     open file under the cursor vertically
+  o                     -- horizontally
+  O                     -- open horizontally and maximize
+  t                     -- in a new tab
+  s                     -- split horizontally alongside existing windows
+  E                     -- in filemanager's window (thus close it)
+  T                     open terminal to the side or above/below
+  U                     change to directory under the cursor and open terminal
+  l                     descend one directory deeper under the cursor
+  gl                    descend to the deepest visible directory under the cursor
+  h                     go to parent directory
+  zc                    fold directory under the cursor
+  zC                    -- recursively, up to the tree root
+  zo                    another way to unfold directory under the cursor
+  c                     change to directory under the cursor and prompt shell command
+  x                     open file in external program (xdg-open by default)
+  S                     $ stat file under the cursor
+  gf                    $ file file under the cursor
+  gr                    toggle reverse sort order
+  gm                    set sort method
+  gS                    set pattern order for sorting by name
+  gI                    configure ignore case in :Filter and :Mark commands
+  gH                    toggle showing dot files
+  gG                    toggle showing files ignored in Git repositories
+  <c-l>                 refresh tree contents based on recorded timestamps
+                        (also executed on BufEnter)
+  <c-r>                 force refresh contents of all directories
+                        (also when Enter hit on tree root)
+  i                     mark/unmark file under the cursor (normal and visual modes)
+  I or Esc              unmark all files
+  D                     delete marked files or mark and delete (normal and visual modes)
+  r                     rename marked files or mark and rename (normal and visual modes)
+  R                     rename files in the tree as you see it, interactively
+  C                     run arbitrary shell command on marked files
+                        or mark and run (normal and visual modes)
+  b<Enter>              print saved bookmarks
+  b{name}               go to bookmark {name}
+  B{name}               save current state to bookmark {name}
+
+To make b and B mappings work, filemanager sets 'notimeout' on BufEnter 
+and restores the old value on BufLeave.
+
+
+What filemanager doesn't do and probably never will includes:
+  * Be portable
+  * Use long listing format (like ls -l)
+
+
+Configuration
+-------------
+filemanager reads the following global variables or uses corresponding 
+default values:
+
+ g:filemanager_opencmd = 'xdg-open'       Command to open file in external program
+ g:filemanager_winsize = 20               filemanager window size, percent of terminal lines / columns
+ g:filemanager_preferleft = 1             Place filemanager window on the left
+ g:filemanager_preferbelow = 1            Place filemanager window at the bottom
+ g:filemanager_orientation = 1            Default orientation: 0=horizontal, 1=vertical
+ g:filemanager_alwaysfixwinsize = 1       Fix window width/height (depending on orientation) on window
+                                          initialization, not only by :L, :V, :H commands
+ g:filemanager_bookmarkonbufexit = 1      Save a backup bookmark when buffer is closed
+ g:filemanager_usebookmarkfile = 1        Save bookmarks to file and load them
+                                          For Vim, the file is located at ~/.vim/.filemanagerbookmarks
+                                          For Neovim, the location is stdpath('cache')/filemanagerbookmarks
+ g:filemanager_writebackupbookmarks = 0   Write backup bookmarks to file
+ g:filemanager_notifyoffilters = 1        Print a message whenever filters are applied
+ g:filemanager_showhidden = 1             Show hidden files (gH mapping)
+ g:filemanager_respectgitignore = 1       Hide files ignored by Git (gG mapping)
+ g:filemanager_respectwildignore = 0      Hide files excluded by 'wildignore'
+                                          Keep in mind that some ftplugin scripts change it
+ g:filemanager_ignorecase = ''            Ignore case in :Filter and :Mark commands (gI mapping)
+                                          '': obey 'ignorecase', '\c': ignore, '\C': don't ignore
+ g:filemanager_sortmethod = 'name'        Default sort method (gm mapping)
+ g:filemanager_sortorder = '/$,.*[^/]$,^\..*/$,^\..*[^/]$,\.bak$,^__pycache__/$,\.swp$,\~$'
+                                          Pattern order for sorting by name (gS mapping)
+ g:filemanager_sortfunc = 'i'             Parameter passed to sort() to sort names within a pattern and elsewhere
+
+The variables are read on Vim startup so runtime changes do not 
+affect filemanager.
