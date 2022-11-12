@@ -3,10 +3,10 @@ filemanager - file manager plugin for Vim and Neovim
 
 
 filemanager is a tree file explorer and manager plugin for Vim and 
-Neovim written from scratch to be as simple and straightforward as 
-possible while providing a rich feature set to cover most, if not all, 
-tasks of a file manager built into a text editor. Its main focus is 
-to never do anything unexpected or unreasonable.
+Neovim written from scratch to be as lightweight, simple, and 
+straightforward as possible while providing a rich feature set to cover 
+most, if not all, tasks of a file manager built into a text editor. Its 
+main focus is to never do anything unexpected or unreasonable.
 
 
 Installation
@@ -23,40 +23,53 @@ Features
   * Run shell commands in current tree root or in the directory under 
     the cursor; open terminal window in these directories,
   * Hide files ignored by Git,
-  * Filter tree contents by regex pattern with support for nested filters,
-  * Mark files interactively or by regex pattern,
-  * Perform actions on marked files: rename, delete, or run an arbitrary 
-    shell command,
+  * Filter tree contents by regex with support for nested and exclusive 
+    filters,
+  * Mark files interactively or by regex; yank files into a list shared 
+    by all filemanager buffers,
+  * Perform actions on marked and yanked files: rename, delete, paste, 
+    or use in an arbitrary shell command,
   * Rename files simply by editing lines in the directory tree,
   * Save bookmarks within the current session or in a file to share them 
-    between sessions. Loaded and saved automatically,
-  * Cursor position kept and restored based on path during all actions 
+    between sessions; loaded and saved automatically,
+  * Cursor position saved and restored based on path during all actions 
     including renaming; renaming directories doesn't fold them in the tree,
   * Open independent buffers with the same directory,
   * One primary buffer per tab and any number of auxiliary ones 
     which can't spawn new windows by mappings,
   * No multi-line motion keys remapped.
 
-Further functionality is better presented by mappings and commands themselves:
+Further functionality is best presented by mappings and commands themselves:
 
-  :L :V :H                set orientation and resize primary filemanager window.
-  :L :V :H [{dir}]        open directory {dir} in new filemanager window.
-  :L! :V! :H!             close primary filemanager window.
+  :L :V :H                set orientation & resize primary filemanager window
+  :L :V :H {dir}          open directory {dir} in new filemanager window
+  :L! :V! :H! {dir}       open {dir} in new or existing filemanager window
+  :L! :V! :H!             close primary filemanager window
 
-  :Filter {pat}           add a pattern to filter directory tree contents.
-  :Filter                 remove last applied pattern.
-  :Filter! [{pat}]        clear all filters and add {pat}, if specified.
+  :Filter {pat}           add a regex to filter directory tree contents
+  :Filter! {pat}          add a regex for exclusive filtering
+  :Filter[!]              remove last applied filter (or all of them with !)
 
-  :Mark[!] {pat}          mark files matching {pat} or unmark if ! is present.
+  :Mark[!] {pat}          mark items matching {pat} or unmark if ! is present
 
-  :Bookmark               print saved bookmarks.
-  :Bookmark {name}        restore bookmark {name}.
-  :Bookmark! {name}       save current state to bookmark {name}.
-  :Bookmark write         write bookmarks to file.
-  :Bookmark load          load bookmarks from file.
+  For both Mark and Filter, the pattern is matched against the last 
+  parts of path relative to tree root and may include '/'. For example, 
+  the pattern "dir/name" will match
+    'rel/path/to/endingwith_dir/name_startingwith'
+  but not
+    'rel/path/to/endingwith_dir/name_startingwith/itscontents'
+  One may use 'dir/name.*' to mark everything under 'dir/name*/' as 
+  well. Note that no wizardry is applied, so be careful and use '[^/]*' 
+  instead of '.*' where appropriate.
+
+  :Bookmark               print saved bookmarks
+  :Bookmark {name}        restore bookmark {name}
+  :Bookmark! {name}       save current state to bookmark {name}
+  :Bookmark write         write bookmarks to file
+  :Bookmark load          load bookmarks from file
 
   :Delbookmark[!] {name}  delete bookmark {name} from current session
-                          and from file if ! is present.
+                          and from file if ! is present
   :Delbookmark!           delete all bookmarks from current session
   :Delbookmark file       delete all bookmarks from file
   :Delbookmark! file      delete all bookmarks from current session and file
@@ -70,19 +83,22 @@ Further functionality is better presented by mappings and commands themselves:
   so that you never lose any older state. Backup bookmarks are also 
   saved when a filemanager buffer is closed.
 
-  Bookmarks store all buffer configuration options (mappings gr, gm, gS, 
-  gI, gH, gG), marked files, filters, open directories, and the cursor 
-  position.
+  Bookmarks store all buffer configuration options (mappings gr, S, gS, 
+  gi, gd, gh, gG), orientation, window size, marked items, filters, open 
+  directories, and the cursor position.
 
-  Available bookmark names include almost all the symbols on the keyboard:
-  '"0123456789qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM[]{};:,.<>/?\!@#$%^&*()-_=+`~
+  Almost any string can serve as a bookmark name. The only unavailable 
+  names are 'file', 'write', and 'load' (and only when the bookmark file 
+  is used).
 
 
   , . < >               scroll horizontally one column / half a screen
-  F                     :Filter
   f                     open file or descend into directory by name
+  F                     find file in 'path' and open it (accepts count)
+                        (use :find itself to open directories correctly)
   d                     create new directory and unfold it
   Enter                 open file or fold/unfold directory under the cursor
+                        (also on left mouse button double click when enabled)
   v                     open file under the cursor vertically
   o                     -- horizontally
   O                     -- open horizontally and maximize
@@ -91,44 +107,57 @@ Further functionality is better presented by mappings and commands themselves:
   E                     -- in filemanager's window (thus close it)
   T                     open terminal to the side or above/below
   U                     change to directory under the cursor and open terminal
-  l                     descend one directory deeper under the cursor
-  gl                    descend to the deepest visible directory under the cursor
-  h                     go to parent directory
+  l   or  right         descend one directory deeper under the cursor
+  gl  or  <s-right>     descend to the deepest visible directory under the cursor
+  h   or  left          go to parent directory
   zc                    fold directory under the cursor
   zC                    -- recursively, up to the tree root
   zo                    another way to unfold directory under the cursor
   c                     change to directory under the cursor and prompt shell command
-  x                     open file in external program (xdg-open by default)
-  S                     $ stat file under the cursor
-  gf                    $ file file under the cursor
+  x                     open item in external program (xdg-open by default)
+  gs                    $ stat item under the cursor
+  gf                    $ file item under the cursor
   gr                    toggle reverse sort order
-  gm                    set sort method
+  S                     set sort method
   gS                    set pattern order for sorting by name
-  gI                    configure ignore case in :Filter and :Mark commands
-  gH                    toggle showing dot files
+  gi                    configure ignore case in :Filter and :Mark commands
+  gh                    toggle showing dot files
   gG                    toggle showing files ignored in Git repositories
+  gd                    toggle applying filters to directories
+  gF                    print filters applied
   <c-l>                 refresh tree contents based on recorded timestamps
                         (also executed on BufEnter)
   <c-r>                 force refresh contents of all directories
                         (also when Enter hit on tree root)
-  i                     mark/unmark file under the cursor (normal and visual modes)
-  I or Esc              unmark all files
-  D                     delete marked files or mark and delete (normal and visual modes)
-  r                     rename marked files or mark and rename (normal and visual modes)
+  i                     mark/unmark items under the cursor (normal and visual modes)
+  I                     reset list of marked items
+  y                     yank marked items into a list shared by all filemanager buffers
+                        visual mode: yank selected items into the shared list
+  Y                     remove marked items from the shared list
+                        visual mode: remove selected items from the shared list
+  D                     delete marked items or selected items in visual mode
+  X                     delete yanked items
+  p  or  zp             copy marked items into the directory under the cursor
+  P  or  zP             copy yanked items into the directory under the cursor
+                        p/P reset the corresponding list on success while zp/zP do not
+  r                     rename item under the cursor or marked items
   R                     rename files in the tree as you see it, interactively
-  C                     run arbitrary shell command on marked files
-                        or mark and run (normal and visual modes)
   b<Enter>              print saved bookmarks
   b{name}               go to bookmark {name}
   B{name}               save current state to bookmark {name}
 
-To make b and B mappings work, filemanager sets 'notimeout' on BufEnter 
-and restores the old value on BufLeave.
+  Note that b and B mappings are not immune to 'timeout' (unlike g, m, q).
+  Bookmark mappings are created for almost all the symbols on the keyboard:
+  '"0123456789qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM[]{};:,.<>/?\!@#$%^&*()-_=+`~
+
+  Enter in command line mode is mapped to replace $marked and $yanked 
+  with lists of marked and yanked items in all :! shell commands. Use 
+  \$marked and \$yanked to type them literally.
 
 
 What filemanager doesn't do and probably never will includes:
   * Be portable
-  * Use long listing format (like ls -l)
+  * Be the fastest file manager possible
 
 
 Configuration
@@ -137,28 +166,34 @@ filemanager reads the following global variables or uses corresponding
 default values:
 
  g:filemanager_opencmd = 'xdg-open'       Command to open file in external program
- g:filemanager_winsize = 20               filemanager window size, percent of terminal lines / columns
- g:filemanager_preferleft = 1             Place filemanager window on the left
+ g:filemanager_winsize = 20               Default window size, percent of terminal lines/columns
+ g:filemanager_preferleft = 1             Place filemanager window to the left
  g:filemanager_preferbelow = 1            Place filemanager window at the bottom
- g:filemanager_orientation = 1            Default orientation: 0=horizontal, 1=vertical
- g:filemanager_alwaysfixwinsize = 1       Fix window width/height (depending on orientation) on window
-                                          initialization, not only by :L, :V, :H commands
+ g:filemanager_vertical = 1               Default orientation, 0 means horizontal
+ g:filemanager_alwaysfixwinsize = 1       Fix window width/height (depending on orientation)
+                                          on initialization, not only by :L, :V, :H commands
+ g:filemanager_enablemouse = 1            Enable mouse mappings (double left click as Enter)
  g:filemanager_bookmarkonbufexit = 1      Save a backup bookmark when buffer is closed
- g:filemanager_usebookmarkfile = 1        Save bookmarks to file and load them
+ g:filemanager_usebookmarkfile = 1        Save bookmarks to file and load them from it
                                           For Vim, the file is located at ~/.vim/.filemanagerbookmarks
                                           For Neovim, the location is stdpath('cache')/filemanagerbookmarks
  g:filemanager_writebackupbookmarks = 0   Write backup bookmarks to file
+ g:filemanager_writeshortbookmarks = 1    Write short alphanumeric bookmarks to file
  g:filemanager_notifyoffilters = 1        Print a message whenever filters are applied
- g:filemanager_showhidden = 1             Show hidden files (gH mapping)
+ g:filemanager_filterdirs = 1             Apply filters to directories
+ g:filemanager_resetmarkedonsuccess = 1   Reset marked and yanked lists on successful
+                                          shell commands that use $marked and $yanked
+ g:filemanager_showhidden = 1             Show hidden files (gh mapping)
  g:filemanager_respectgitignore = 1       Hide files ignored by Git (gG mapping)
  g:filemanager_respectwildignore = 0      Hide files excluded by 'wildignore'
                                           Keep in mind that some ftplugin scripts change it
- g:filemanager_ignorecase = ''            Ignore case in :Filter and :Mark commands (gI mapping)
+ g:filemanager_ignorecase = ''            Ignore case in :Filter and :Mark commands (gi mapping)
                                           '': obey 'ignorecase', '\c': ignore, '\C': don't ignore
- g:filemanager_sortmethod = 'name'        Default sort method (gm mapping)
+ g:filemanager_sortmethod = 'name'        Default sort method (S mapping)
  g:filemanager_sortorder = '/$,.*[^/]$,^\..*/$,^\..*[^/]$,\.bak$,^__pycache__/$,\.swp$,\~$'
                                           Pattern order for sorting by name (gS mapping)
- g:filemanager_sortfunc = 'i'             Parameter passed to sort() to sort names within a pattern and elsewhere
+ g:filemanager_sortfunc = ''              Parameter passed to Vim's sort() to sort names
+                                          within a pattern and elsewhere
 
 The variables are read on Vim startup so runtime changes do not 
 affect filemanager.
