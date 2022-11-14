@@ -219,12 +219,10 @@ fun! s:printcontents(dic, path, depth, linenr)  " {{{
 			let l:line = l:name.s:separator.'='
 		elseif l:ftype == 'fifo'
 			let l:line = l:name.s:separator.'|'
+		elseif executable(l:path.'/'.l:name)
+			let l:line = l:name.s:separator.'*'
 		else
-			if executable(l:path.'/'.l:name)
-				let l:line = l:name.s:separator.'*'
-			else
-				let l:line = l:name.s:separator.' '
-			endif
+			let l:line = l:name.s:separator.' '
 		endif
 
 		if index(b:fm_marked, l:path.'/'.l:name) != -1
