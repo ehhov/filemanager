@@ -1793,8 +1793,6 @@ endfun  " }}}
 fun! s:processcmdline()  " {{{
 	if getcmdtype() != ':' || getcmdline() !~# '\$\(yan\|mar\)ked'
 		return getcmdline()
-	elseif getcmdline() =~# '[^\\]\$\(yan\|mar\)ked' && getcmdline() !~# '!'
-		return '" $yanked and $marked can be used only in shell commands'
 	endif
 
 	if s:resetmarkedonsuccess
