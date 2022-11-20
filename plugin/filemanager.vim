@@ -42,6 +42,10 @@ let s:sortorder = get(g:, 'filemanager_sortorder', '/$,.*[^/]$,^\..*/$,^\..*[^/]
 let s:depthstr = '| '
 let s:depthstrmarked = '|+'
 let s:depthstryanked = '|-'
+let s:depthstrpat = '\%(|[ +-]\)'
+let s:depthstronlypat = '\%(| \)'
+let s:depthstrmarkedpat = '\%(|+\)'
+let s:depthstryankedpat = '\%(|-\)'
 let s:separator = "'"  " separates depth and file type from file name
 let s:seppat = "'"     " in case separator is a special character
 
@@ -58,12 +62,6 @@ aug filemanager
 aug END
 
 
-" Use the longer representation if your depthstr's have special characters
-"let s:depthstrpat = '\(\V'.escape(s:depthstr, '\').'\m\|\V'.escape(s:depthstrmarked, '\').'\m\)'
-let s:depthstrpat = '\('.s:depthstr.'\|'.s:depthstrmarked.'\|'.s:depthstryanked.'\)'
-let s:depthstronlypat = '\('.s:depthstr.'\)'
-let s:depthstrmarkedpat = '\('.s:depthstrmarked.'\)'
-let s:depthstryankedpat = '\('.s:depthstryanked.'\)'
 let s:filetypepat = '\%([\*@=|/]\|!@\|\)'
 
 let s:tabvars = ['sortorder', 'sortmethod', 'sortreverse', 'ignorecase', 'filterdirs',
