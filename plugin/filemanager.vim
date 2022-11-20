@@ -1327,16 +1327,17 @@ fun! s:markbypat(pattern, bang)  " {{{
 endfun  " }}}
 
 
-fun! s:mark(rangeends)  " {{{
+fun! s:mark(ends)  " {{{
 	let l:oldlen = len(b:fm_marked)
 	let l:presentpaths = []
 	let l:newpaths = []
-	for l:linenr in range(min(a:rangeends), max(a:rangeends))
-		let l:path = s:undercursor(0, l:linenr)
-		if l:linenr < 3
-			echo 'Skipping "'.l:path.'"'
-			continue
-		endif
+	for l:path in uniq(map(filter(range(min(a:ends), max(a:ends)), 'v:val < 3'),
+	                      \'s:undercursor(0, v:val)'))
+	        echo 'Skipping "'.l:path.'"'
+	endfor
+	" uniq() for possible empty directories
+	for l:path in uniq(map(filter(range(min(a:ends), max(a:ends)), 'v:val > 2'),
+	                      \'s:undercursor(0, v:val)'))
 		let l:i = index(b:fm_marked, l:path)
 		if l:i == -1
 			call add(l:newpaths, l:path)
@@ -1762,15 +1763,13 @@ endfun  " }}}
 
 
 fun! s:visualcmd(cmd, ends)  " {{{
-	let l:list = []
-	for l:linenr in range(min(a:ends), max(a:ends))
-		let l:path = s:undercursor(0, l:linenr)
-		if l:linenr < 3
-			echo 'Skipping "'.l:path.'"'
-		else
-			call add(l:list, l:path)
-		endif
+	for l:path in uniq(map(filter(range(min(a:ends), max(a:ends)), 'v:val < 3'),
+	                      \'s:undercursor(0, v:val)'))
+	        echo 'Skipping "'.l:path.'"'
 	endfor
+	" uniq() for possible empty directories
+	let l:list = uniq(map(filter(range(min(a:ends), max(a:ends)), 'v:val > 2'),
+	                      \'s:undercursor(0, v:val)'))
 	if a:cmd ==# 'y'
 		call s:yankmarked(l:list)
 	elseif a:cmd ==# 'Y'
