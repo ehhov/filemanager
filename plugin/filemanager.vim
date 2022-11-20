@@ -64,7 +64,7 @@ let s:depthstrpat = '\('.s:depthstr.'\|'.s:depthstrmarked.'\|'.s:depthstryanked.
 let s:depthstronlypat = '\('.s:depthstr.'\)'
 let s:depthstrmarkedpat = '\('.s:depthstrmarked.'\)'
 let s:depthstryankedpat = '\('.s:depthstryanked.'\)'
-let s:filetypepat = '[ \*@=|/]'  " space for regular files
+let s:filetypepat = '\%([\*@=|/]\|!@\|\)'
 
 let s:tabvars = ['sortorder', 'sortmethod', 'sortreverse', 'ignorecase', 'filterdirs',
                 \'respectgitignore', 'showhidden', 'vertical', 'winsize']
@@ -210,9 +210,11 @@ fun! s:printcontents(dic, path, depth, linenr)  " {{{
 				continue
 			endif
 			" Directory was empty
-			let l:line = s:separator.' '
+			let l:line = s:separator
 		elseif l:ftype == 'dir'
 			let l:line = l:name.s:separator.'/'
+		elseif l:ftype == 'link' && empty(glob(escape(fnameescape(l:path.'/'.l:name), '~'), 1, 1, 0))
+			let l:line = l:name.s:separator.'!@'
 		elseif l:ftype == 'link'
 			let l:line = l:name.s:separator.'@'
 		elseif l:ftype == 'socket'
@@ -222,7 +224,7 @@ fun! s:printcontents(dic, path, depth, linenr)  " {{{
 		elseif executable(l:path.'/'.l:name)
 			let l:line = l:name.s:separator.'*'
 		else
-			let l:line = l:name.s:separator.' '
+			let l:line = l:name.s:separator
 		endif
 
 		if index(b:fm_marked, l:path.'/'.l:name) != -1
@@ -1963,15 +1965,17 @@ fun! s:initialize(path, aux)  " {{{
 
 	syntax clear
 	syntax spell notoplevel
-	exe 'syntax match fm_regularfile  ".*'.s:seppat.' $"       contains=fm_depth,fm_marked,fm_yanked,fm_sepregfile'
+	exe 'syntax match fm_regularfile  ".*'.s:seppat.'$"        contains=fm_depth,fm_marked,fm_yanked,fm_sepregfile'
 	exe 'syntax match fm_directory    ".*'.s:seppat.'/$"       contains=fm_depth,fm_marked,fm_yanked,fm_ftypeind'
 	exe 'syntax match fm_executable   ".*'.s:seppat.'\*$"      contains=fm_depth,fm_marked,fm_yanked,fm_ftypeind'
 	exe 'syntax match fm_symlink      ".*'.s:seppat.'@$"       contains=fm_depth,fm_marked,fm_yanked,fm_ftypeind'
+	exe 'syntax match fm_symlinkmis   ".*'.s:seppat.'!@$"      contains=fm_depth,fm_marked,fm_yanked,fm_ftypeind'
 	exe 'syntax match fm_socket       ".*'.s:seppat.'=$"       contains=fm_depth,fm_marked,fm_yanked,fm_ftypeind'
 	exe 'syntax match fm_fifo         ".*'.s:seppat.'|$"       contains=fm_depth,fm_marked,fm_yanked,fm_ftypeind'
-	exe 'syntax match fm_ftypeind     "'.s:seppat.'[\*@=|/]$"     contains=fm_sepftype contained'
-	exe 'syntax match fm_sepftype     "'.s:seppat.'\ze[\*@=|/]$"  conceal contained'
-	exe 'syntax match fm_sepregfile   "'.s:seppat.' $"            conceal contained'
+	exe 'syntax match fm_ftypeind     "'.s:seppat.s:filetypepat.'$"  contains=fm_sepftype contained'
+	exe 'syntax match fm_sepftype     "'.s:seppat.'\ze[\*@=|/]$"     conceal contained'
+	exe 'syntax match fm_sepftype     "'.s:seppat.'!\ze@$"           conceal contained'
+	exe 'syntax match fm_sepregfile   "'.s:seppat.'$"                conceal contained'
 	exe 'syntax match fm_depth        "^'.s:depthstronlypat.'\+'.s:seppat.'"    contains=fm_sepdepth contained'
 	exe 'syntax match fm_marked       "^'.s:depthstrmarkedpat.'\+'.s:seppat.'"  contains=fm_sepdepth contained'
 	exe 'syntax match fm_yanked       "^'.s:depthstryankedpat.'\+'.s:seppat.'"  contains=fm_sepdepth contained'
@@ -1981,6 +1985,7 @@ fun! s:initialize(path, aux)  " {{{
 	highlight link fm_directory       Directory
 	highlight link fm_executable      Question
 	highlight link fm_symlink         Identifier
+	highlight link fm_symlinkmis      WarningMsg
 	highlight link fm_socket          PreProc
 	highlight link fm_fifo            Statement
 	highlight link fm_ftypeind        NonText
