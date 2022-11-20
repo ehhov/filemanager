@@ -1328,7 +1328,6 @@ endfun  " }}}
 
 
 fun! s:mark(ends)  " {{{
-	let l:oldlen = len(b:fm_marked)
 	let l:presentpaths = []
 	let l:newpaths = []
 	for l:path in uniq(map(filter(range(min(a:ends), max(a:ends)), 'v:val < 3'),
@@ -1345,19 +1344,19 @@ fun! s:mark(ends)  " {{{
 			call add(l:presentpaths, l:i)
 		endif
 	endfor
-	if empty(l:newpaths)
+	if empty(l:newpaths) && empty(l:presentpaths)
+		return
+	elseif empty(l:newpaths)
 		for l:i in reverse(sort(l:presentpaths, 'n'))
 			call remove(b:fm_marked, l:i)
 		endfor
 	else
 		let b:fm_marked += l:newpaths
 	endif
-	if len(b:fm_marked) != l:oldlen
-		let b:fm_markedtick += 1
-		let l:winview = winsaveview()
-		call s:printtree()
-		call winrestview(l:winview)
-	endif
+	let b:fm_markedtick += 1
+	let l:winview = winsaveview()
+	call s:printtree()
+	call winrestview(l:winview)
 endfun  " }}}
 
 
