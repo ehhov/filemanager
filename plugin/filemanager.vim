@@ -773,7 +773,6 @@ fun! s:bookmarksave(name, bak)  " {{{
 		call insert(s:bookmarks[a:name], s:opendirs(b:fm_tree, ''))
 		call insert(s:bookmarks[a:name], s:undercursor(1))
 		call insert(s:bookmarks[a:name], a:bak)
-		let b:fm_changedticksave = b:changedtick
 		if !a:bak
 			echomsg 'Bookmark "'.a:name.'" saved'
 		endif
