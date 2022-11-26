@@ -155,6 +155,7 @@ Further functionality is best presented by mappings and commands themselves:
   Enter in command line mode is mapped to replace $marked and $yanked 
   with lists of marked and yanked items in all :! shell commands. Use 
   \$marked and \$yanked to type them literally.
+  Similarly, $cfile is replaced with the item under the cursor.
 
 
 What filemanager doesn't do and probably never will includes:

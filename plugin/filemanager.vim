@@ -1821,7 +1821,7 @@ endfun  " }}}
 
 
 fun! s:processcmdline()  " {{{
-	if getcmdtype() != ':' || getcmdline() !~# '\$\(yan\|mar\)ked'
+	if getcmdtype() != ':' || getcmdline() !~# '\$\(yanked\|marked\|cfile\)'
 		return getcmdline()
 	endif
 
@@ -1853,6 +1853,12 @@ fun! s:processcmdline()  " {{{
 			let b:fm_markedshtick = b:fm_markedtick
 		endif
 	endif
+
+	if getcmdline() =~# '[^\\]\$cfile'
+		let l:cfile = ' '.shellescape(s:undercursor(0), 1).' '
+	else
+		let l:cfile = ''
+	endif
 	if s:resetmarkedonsuccess
 		" Also restores this autocmd from s:initialize()
 		au filemanager ShellCmdPost  <buffer>  call s:refreshtree(-1)
@@ -1865,6 +1871,11 @@ fun! s:processcmdline()  " {{{
 	" Avoid potential problems of nested v:val usage in map(map())
 	for l:list in l:split
 		call map(l:list, 'substitute(v:val, ''\\\$marked'', "$marked", "g")')
+		call map(l:list, 'split(v:val, ''[^\\]\zs\$cfile'', 1)')
+		for l:sublist in l:list
+			call map(l:sublist, 'substitute(v:val, ''\\\$cfile'', "$cfile", "g")')
+		endfor
+		call map(l:list, 'join(v:val, l:cfile)')
 	endfor
 	call map(l:split, 'join(v:val, b:fm_markedsh)')
 	return join(l:split, s:yankedsh)
