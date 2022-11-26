@@ -56,8 +56,8 @@ aug filemanager
 	au VimEnter           *  silent! au! FileExplorer
 	au VimEnter,BufEnter  *  call s:enter(expand('<afile>:p'), str2nr(expand('<abuf>')))
 	if s:usebookmarkfile
-		au VimEnter   *  silent call s:loadbookmarks()
-		au VimLeave   *  call s:writebookmarks(0)
+		au VimEnter     *  silent call s:loadbookmarks()
+		au VimLeavePre  *  call s:writebookmarks(2)
 	endif
 aug END
 
@@ -86,6 +86,15 @@ if s:usebookmarkfile
 		let s:bookmarkfile = stdpath('cache').'/filemanagerbookmarks'
 	else
 		let s:bookmarkfile = getenv('HOME').'/.vim/.filemanagerbookmarks'
+	endif
+	if empty(glob(escape(fnameescape(fnamemodify(s:bookmarkfile, ':h')), '~'), 1, 1, 1))
+		try
+			call mkdir(fnamemodify(s:bookmarkfile, ':h'), 'p')
+		catch /^Vim\%((\a\+)\)\?:E739/
+			echohl ErrorMsg
+			echomsg 'Failed to create cache directory for filemanager bookmarks'
+			echohl None
+		endtry
 	endif
 else
 	let s:bookmarkfile = ''
@@ -841,7 +850,7 @@ fun! s:printbookmarks()  " {{{
 endfun  " }}}
 
 
-fun! s:writebookmarks(overwrite)  " {{{
+fun! s:writebookmarks(operation)  " {{{
 	if s:writebackupbookmarks && s:writeshortbookmarks
 		let l:bookmarks = s:bookmarks
 	elseif s:writeshortbookmarks
@@ -849,7 +858,7 @@ fun! s:writebookmarks(overwrite)  " {{{
 	else
 		let l:bookmarks = filter(copy(s:bookmarks), 'index(s:bookmarknames, v:val) == -1')
 	endif
-	if !a:overwrite && filereadable(s:bookmarkfile)
+	if a:operation != 1 && filereadable(s:bookmarkfile)
 		let l:saved = readfile(s:bookmarkfile)
 		if empty(l:saved) || empty(l:saved[0]) || empty(eval(l:saved[0]))
 			let l:saved = l:bookmarks
@@ -860,12 +869,22 @@ fun! s:writebookmarks(overwrite)  " {{{
 	else
 		let l:saved = l:bookmarks
 	endif
-	if writefile([string(l:saved)], s:bookmarkfile)
-		echohl ErrorMsg
-		echomsg 'Failed to write bookmarks to file'
-		echohl None
-		return 1
-	endif
+	let l:err = 1
+	try
+		let l:err = writefile([string(l:saved)], s:bookmarkfile)
+	finally
+		" No error only when writefile() finishes and returns 0
+		if l:err
+			echohl ErrorMsg
+			echomsg 'Failed to write bookmarks to file'
+			echohl None
+			" Make sure the user sees this on VimLeavePre
+			if a:operation == 2
+				call confirm("Error on VimLeave", "Seen")
+			endif
+			return 1
+		endif
+	endtry
 	return 0
 endfun  " }}}
 
