@@ -51,8 +51,10 @@ Further functionality is best presented by mappings and commands themselves:
   :Filter[!]              remove last applied filter (or all of them with !)
 
   :Mark[!] {pat}          mark items matching {pat} or unmark if ! is present
+  :Yank[!] {pat}          yank items into a list shared by all filemanager buffers
+  :Mark  :Yank            print marked and yanked lists
 
-  For both Mark and Filter, the pattern is matched against the last 
+  For Mark, Yank, and Filter, the pattern is matched against the last 
   parts of path relative to tree root and may include '/'. For example, 
   the pattern "dir/name" will match
     'rel/path/to/endingwith_dir/name_startingwith'
@@ -120,7 +122,7 @@ Further functionality is best presented by mappings and commands themselves:
   gr                    toggle reverse sort order
   S                     set sort method
   gS                    set pattern order for sorting by name
-  gi                    configure ignore case in :Filter and :Mark commands
+  gi                    configure ignore case in :Filter, :Mark, :Yank commands
   gh                    toggle showing dot files
   gG                    toggle showing files ignored in Git repositories
   gd                    toggle applying filters to directories
@@ -187,7 +189,7 @@ default values:
  g:filemanager_respectgitignore = 1       Hide files ignored by Git (gG mapping)
  g:filemanager_respectwildignore = 0      Hide files excluded by 'wildignore'
                                           Keep in mind that some ftplugin scripts change it
- g:filemanager_ignorecase = ''            Ignore case in :Filter and :Mark commands (gi mapping)
+ g:filemanager_ignorecase = ''            Ignore case in :Filter, :Mark, :Yank commands (gi mapping)
                                           '': obey 'ignorecase', '\c': ignore, '\C': don't ignore
  g:filemanager_sortmethod = 'name'        Default sort method (S mapping)
  g:filemanager_sortorder = '/$,.*[^/]$,^\..*/$,^\..*[^/]$,\.bak$,^__pycache__/$,\.swp$,\~$'

@@ -611,7 +611,8 @@ endfun  " }}}
 
 
 fun! s:setignorecase()  " {{{
-	let l:choice = confirm("Configure ignore case in Filter and Mark:", "&Obey 'ignorecase'\n&Ignore\n&Don't ignore")
+	let l:choice = confirm("Configure ignore case in Filter, Mark, and Yank:",
+	                      \"&Obey 'ignorecase'\n&Ignore\n&Don't ignore")
 	if l:choice == 0
 		return
 	else
@@ -1315,33 +1316,45 @@ fun! s:namematches(tree, relpath, pattern)  " {{{
 endfun  " }}}
 
 
-fun! s:markbypat(pattern, bang)  " {{{
+fun! s:markbypat(pattern, bang, yank)  " {{{
 	if s:checkregex(a:pattern)
 		return
 	endif
+	let l:list = a:yank ? s:yanked : b:fm_marked
+	if empty(a:pattern) && empty(l:list)
+		echo a:yank ? 'Yanked list empty' : 'Marked list empty'
+		return
+	elseif empty(a:pattern)
+		echo a:yank ? 'Yanked items:' : 'Marked items:'
+		echo ' '.join(l:list, "\n ")
+		return
+	endif
+	let l:oldlen = len(l:list)
 	let l:cmp = b:fm_treeroot == '/' ? '/' : b:fm_treeroot.'/'
 	let l:pattern = a:pattern . (a:pattern[-1:-1] == '$' ? '' : '[^/]*$')
 	if a:bang
 		let l:i = -1
-		for l:path in b:fm_marked
+		for l:path in l:list
 			let l:i += 1
 			if l:path[:len(l:cmp)-1] !=# l:cmp
 				echo 'Ignoring "'.l:path.'"'
 				continue
-			endif
-			if match(l:path[len(l:cmp):], b:fm_ignorecase.l:pattern) != -1
-				call remove(b:fm_marked, l:i)
+			elseif match(l:path[len(l:cmp):], b:fm_ignorecase.l:pattern) != -1
+				call remove(l:list, l:i)
 				let l:i -= 1
 			endif
 		endfor
 	else
-		let l:list = s:namematches(b:fm_tree, '', l:pattern)
-		call uniq(sort(extend(b:fm_marked, map(l:list, 'l:cmp.v:val'))))
+		let l:names = s:namematches(b:fm_tree, '', l:pattern)
+		call uniq(sort(extend(l:list, map(l:names, 'l:cmp.v:val'))))
 	endif
-	let b:fm_markedtick += 1
-	let l:winview = winsaveview()
-	call s:printtree()
-	call winrestview(l:winview)
+	if l:oldlen != len(l:list)
+		let b:fm_markedtick += !a:yank
+		let s:yankedtick += a:yank
+		let l:winview = winsaveview()
+		call s:printtree()
+		call winrestview(l:winview)
+	endif
 endfun  " }}}
 
 
@@ -1686,6 +1699,7 @@ fun! s:renametree(tree=0)  " {{{
 	call s:setbufname()
 
 	delcommand Mark
+	delcommand Yank
 	delcommand Filter
 	delcommand Bookmark
 	delcommand Delbookmark
@@ -1889,7 +1903,8 @@ endfun  " }}}
 
 fun! s:definemapcmd()  " {{{
 	" Separete function because of s:renamemarked()
-	command! -buffer -bang -nargs=1  Mark         call s:markbypat(<q-args>, <bang>0)
+	command! -buffer -bang -nargs=?  Mark         call s:markbypat(<q-args>, <bang>0, 0)
+	command! -buffer -bang -nargs=?  Yank         call s:markbypat(<q-args>, <bang>0, 1)
 	command! -buffer -bang -nargs=?  Filter       call s:filtercmd(<q-args>, <bang>0)
 	command! -buffer -bang -nargs=? -complete=customlist,s:bookmarksuggest
 	                               \ Bookmark     call s:bookmarkcmd(<bang>0, <q-args>)
