@@ -1099,7 +1099,7 @@ fun! s:openbyfind()  " {{{
 endfun  " }}}
 
 
-fun! s:openbyname()  " {{{
+fun! s:openbyname(ext)  " {{{
 	let l:path = fnamemodify(s:undercursor(1, line('.') > 3 ? line('.') : 3), ':h')
 	if s:dirreadable(l:path)
 		exe 'lcd '.fnameescape(l:path)
@@ -1119,7 +1119,11 @@ fun! s:openbyname()  " {{{
 		let l:name = substitute(l:path, '/$', '', '').'/'.l:name
 	endif
 
-	call s:open(s:simplify(l:name), -1)
+	if a:ext
+		call s:openexternal(s:simplify(l:name))
+	else
+		call s:open(s:simplify(l:name), -1)
+	endif
 endfun  " }}}
 
 
@@ -1927,7 +1931,7 @@ fun! s:definemapcmd()  " {{{
 	nnoremap <nowait> <buffer>  .        zl
 	nnoremap <nowait> <buffer>  <        zH
 	nnoremap <nowait> <buffer>  >        zL
-	nnoremap <nowait> <buffer>  f        <cmd>call <sid>openbyname()<cr>
+	nnoremap <nowait> <buffer>  f        <cmd>call <sid>openbyname(0)<cr>
 	nnoremap <nowait> <buffer>  F        <cmd>call <sid>openbyfind()<cr>
 	nnoremap <nowait> <buffer>  d        <cmd>call <sid>newdir()<cr>
 	nnoremap <nowait> <buffer>  <cr>     <cmd>call <sid>open(<sid>undercursor(1), 0)<cr>
@@ -1950,6 +1954,7 @@ fun! s:definemapcmd()  " {{{
 	nnoremap <nowait> <buffer>  zo       <cmd>call <sid>toggledir(<sid>undercursor(1), 2)<cr>
 	nnoremap <nowait> <buffer>  c        <cmd>call <sid>cmdundercursor()<cr>
 	nnoremap <nowait> <buffer>  x        <cmd>call <sid>openexternal(<sid>undercursor(1))<cr>
+	nnoremap <nowait> <buffer>  X        <cmd>call <sid>openbyname(1)<cr>
 	nnoremap <nowait> <buffer>  gs       <cmd>call <sid>statcmd(<sid>undercursor(1))<cr>
 	nnoremap <nowait> <buffer>  gf       <cmd>call <sid>filecmd(<sid>undercursor(1))<cr>
 	nnoremap <nowait> <buffer>  gr       <cmd>call <sid>togglesortreverse()<cr>
@@ -1973,7 +1978,7 @@ fun! s:definemapcmd()  " {{{
 	nnoremap <nowait> <buffer>  P        <cmd>call <sid>pastemarked(0, 1)<cr>
 	nnoremap <nowait> <buffer>  zp       <cmd>call <sid>pastemarked(1, 0)<cr>
 	nnoremap <nowait> <buffer>  zP       <cmd>call <sid>pastemarked(1, 1)<cr>
-	nnoremap <nowait> <buffer>  X        <cmd>call <sid>deletemarked(1)<cr>
+	nnoremap <nowait> <buffer>  zD       <cmd>call <sid>deletemarked(1)<cr>
 	nnoremap <nowait> <buffer>  b        <nop>
 	nnoremap <nowait> <buffer>  B        <nop>
 	nnoremap <nowait> <buffer>  b<cr>    <cmd>call <sid>printbookmarks()<cr>
