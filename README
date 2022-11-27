@@ -193,8 +193,8 @@ default values:
                                           Keep in mind that some ftplugin scripts change it
  g:filemanager_ignorecase = ''            Ignore case in :Filter, :Mark, :Yank commands (gi mapping)
                                           '': obey 'ignorecase', '\c': ignore, '\C': don't ignore
- g:filemanager_sortmethod = 'name'        Default sort method (S mapping)
- g:filemanager_sortorder = '/$,.*[^/]$,^\..*/$,^\..*[^/]$,\.bak$,^__pycache__/$,\.swp$,\~$'
+ g:filemanager_sortmethod = 'name'        Default sort method: only 'name' or 'time' (S mapping)
+ g:filemanager_sortorder = '*/,*,.*/,.*,^__pycache__/$,\.bak$,\.swp$,\~$'
                                           Pattern order for sorting by name (gS mapping)
  g:filemanager_sortfunc = ''              Parameter passed to Vim's sort() to sort names
                                           within a pattern and elsewhere

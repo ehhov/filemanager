@@ -38,7 +38,7 @@ let s:respectwildignore    = get(g:, 'filemanager_respectwildignore',    0)
 let s:ignorecase           = get(g:, 'filemanager_ignorecase',          '')
 let s:sortmethod           = get(g:, 'filemanager_sortmethod',      'name')
 let s:sortfunc             = get(g:, 'filemanager_sortfunc',            '')
-let s:sortorder = get(g:, 'filemanager_sortorder', '/$,.*[^/]$,^\..*/$,^\..*[^/]$,\.bak$,^__pycache__/$,\.swp$,\~$')
+let s:sortorder = get(g:, 'filemanager_sortorder', '*/,*,.*/,.*,^__pycache__/$,\.bak$,\.swp$,\~$')
 let s:depthstr = '| '
 let s:depthstrmarked = '|+'
 let s:depthstryanked = '|-'
@@ -159,38 +159,51 @@ endfun  " }}}
 
 
 fun! s:sortbyname(list, path)  " {{{
-	let l:revsplitsortorder = reverse(split(b:fm_sortorder, '[^\\]\zs,'))
-	call map(l:revsplitsortorder, 'substitute(v:val, "\\\\,", ",", "g")')
-	let l:matches = add(map(copy(l:revsplitsortorder), '[]'), [])
-
+	let l:splitsortorder = split(b:fm_sortorder, '[^\\]\zs,')
+	call map(l:splitsortorder, 'substitute(v:val, "\\\\,", ",", "g")')
+	let l:matches = add(map(copy(l:splitsortorder), '[]'), [])
+	let l:rest = [[], [], [], []]
+	let l:restid = [index(l:splitsortorder, '*/'), index(l:splitsortorder, '*'),
+	               \index(l:splitsortorder, '.*/'), index(l:splitsortorder, '.*')]
+	for l:i in filter(copy(l:restid), 'v:val != -1')
+		let l:splitsortorder[l:i] = ''
+	endfor
 	for l:name in a:list
-		if getftype(a:path.'/'.l:name) == 'dir'
-			let l:line = l:name.'/'  " No separator here
-		else
-			let l:line = l:name
-		endif
+		let l:matchname = getftype(a:path.l:name) == 'dir' ? l:name.'/' : l:name
 		let l:i = 0
-		for l:pattern in l:revsplitsortorder
-			if match(l:line, '\C'.l:pattern) != -1
+		for l:pat in l:splitsortorder
+			if l:pat != '' && match(l:matchname, '\C'.l:pat) != -1
 				let l:i = -l:i - 1
 				break
 			endif
 			let l:i += 1
 		endfor
-		call add(l:matches[l:i < 0 ? -l:i : 0], l:name)
+		if l:i < 0
+			call add(l:matches[-l:i-1], l:name)
+		else
+			call add(l:rest[(l:matchname[-1:-1] != '/')
+			               \+2*(l:matchname[0] == '.')], l:name)
+		endif
 	endfor
-
+	for [l:i, l:j] in [[2, (l:restid[3] == -1 ? 0 : 3)], [0, 1], [3, 1]]
+		if l:restid[l:i] == -1
+			let l:rest[l:j] += l:rest[l:i]
+			call filter(l:rest[l:i], 0)
+		endif
+	endfor
+	for l:i in filter(range(4), '!empty(l:rest[v:val])')
+		let l:matches[l:restid[l:i]] = l:rest[l:i]
+	endfor
 	let l:sorted = []
-	for l:sublist in reverse(l:matches)
+	for l:sublist in l:matches
 		let l:sorted += sort(l:sublist, s:sortfunc)
 	endfor
-
 	return l:sorted
 endfun  " }}}
 
 
 fun! s:sortbytime(list, path)  " {{{
-	let l:list = map(a:list, 'getftime(a:path."/".v:val)." ".v:val')
+	let l:list = map(a:list, 'getftime(a:path.v:val)." ".v:val')
 	return map(reverse(sort(l:list, 'N')), 'substitute(v:val, "^-\\?\\d* ", "", "")')
 endfun  " }}}
 
@@ -206,11 +219,11 @@ endfun  " }}}
 
 
 fun! s:printcontents(dic, path, depth, linenr)  " {{{
-	let l:path = substitute(a:path, '/$', '', '')
+	let l:path = substitute(a:path, '/$', '', '').'/'
 	let l:linenr = a:linenr
 
 	for l:name in s:sort(a:dic, l:path)
-		let l:ftype = getftype(l:path.'/'.l:name)
+		let l:ftype = getftype(l:path.l:name)
 		if l:name == ''
 			" This is where timestamps are stored
 			if len(a:dic) > 1
@@ -220,7 +233,7 @@ fun! s:printcontents(dic, path, depth, linenr)  " {{{
 			let l:line = s:separator
 		elseif l:ftype == 'dir'
 			let l:line = l:name.s:separator.'/'
-		elseif l:ftype == 'link' && empty(glob(escape(fnameescape(l:path.'/'.l:name), '~'), 1, 1, 0))
+		elseif l:ftype == 'link' && empty(glob(escape(fnameescape(l:path.l:name), '~'), 1, 1, 0))
 			let l:line = l:name.s:separator.'!@'
 		elseif l:ftype == 'link'
 			let l:line = l:name.s:separator.'@'
@@ -228,15 +241,15 @@ fun! s:printcontents(dic, path, depth, linenr)  " {{{
 			let l:line = l:name.s:separator.'='
 		elseif l:ftype == 'fifo'
 			let l:line = l:name.s:separator.'|'
-		elseif executable(l:path.'/'.l:name)
+		elseif executable(l:path.l:name)
 			let l:line = l:name.s:separator.'*'
 		else
 			let l:line = l:name.s:separator
 		endif
 
-		if index(b:fm_marked, l:path.'/'.l:name) != -1
+		if index(b:fm_marked, l:path.l:name) != -1
 			let l:line = repeat(s:depthstrmarked, a:depth).s:separator.l:line
-		elseif index(s:yanked, l:path.'/'.l:name) != -1
+		elseif index(s:yanked, l:path.l:name) != -1
 			let l:line = repeat(s:depthstryanked, a:depth).s:separator.l:line
 		else
 			let l:line = repeat(s:depthstr, a:depth).s:separator.l:line
@@ -247,7 +260,7 @@ fun! s:printcontents(dic, path, depth, linenr)  " {{{
 
 		let l:contents = a:dic[l:name]
 		if type(l:contents) == v:t_dict && !empty(l:contents)
-			let l:linenr = s:printcontents(l:contents, l:path.'/'.l:name, a:depth+1, l:linenr)
+			let l:linenr = s:printcontents(l:contents, l:path.l:name, a:depth+1, l:linenr)
 		endif
 	endfor
 
@@ -691,9 +704,10 @@ endfun  " }}}
 
 fun! s:checksortorder(sortorder)  " {{{
 	let l:validsortorder = []
-	for l:pattern in split(a:sortorder, '[^\\]\zs,')
-		if !s:checkregex(substitute(l:pattern, '\\,', ',', 'g'))
-			call add(l:validsortorder, l:pattern)
+	for l:pat in split(a:sortorder, '[^\\]\zs,')
+		if l:pat == '*'|| l:pat == '*/' || l:pat == '.*' || l:pat == '.*/'
+		   \|| !s:checkregex(substitute(l:pat, '\\,', ',', 'g'))
+			call add(l:validsortorder, l:pat)
 		endif
 	endfor
 	return join(l:validsortorder, ',')
