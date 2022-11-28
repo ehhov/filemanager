@@ -37,6 +37,7 @@ let s:respectgitignore     = get(g:, 'filemanager_respectgitignore',     1)
 let s:respectwildignore    = get(g:, 'filemanager_respectwildignore',    0)
 let s:ignorecase           = get(g:, 'filemanager_ignorecase',          '')
 let s:sortmethod           = get(g:, 'filemanager_sortmethod',      'name')
+let s:newestfirst          = get(g:, 'filemanager_newestfirst',          1)
 let s:sortfunc             = get(g:, 'filemanager_sortfunc',            '')
 let s:sortorderrules       = get(g:, 'filemanager_sortorderrules',      {})
 let s:sortorder = get(g:, 'filemanager_sortorder', '*/,*,.*/,.*,^__pycache__/$,\.bak$,\.swp$,\~$')
@@ -221,7 +222,8 @@ endfun  " }}}
 
 fun! s:sortbytime(list, path)  " {{{
 	let l:list = map(a:list, 'getftime(a:path.v:val)." ".v:val')
-	return map(reverse(sort(l:list, 'N')), 'substitute(v:val, "^-\\?\\d* ", "", "")')
+	call map(sort(l:list, 'N'), 'substitute(v:val, "^-\\?\\d* ", "", "")')
+	return s:newestfirst ? reverse(l:list) : l:list
 endfun  " }}}
 
 

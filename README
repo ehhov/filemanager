@@ -196,6 +196,7 @@ default values:
  g:filemanager_ignorecase = ''            Ignore case in :Filter, :Mark, :Yank commands (gi mapping)
                                           '': obey 'ignorecase', '\c': ignore, '\C': don't ignore
  g:filemanager_sortmethod = 'name'        Default sort method: only 'name' or 'time' (S mapping)
+ g:filemanager_newestfirst = 1            Place newest first by default when sorting by time
  g:filemanager_sortorder = '*/,*,.*/,.*,^__pycache__/$,\.bak$,\.swp$,\~$'
                                           Pattern order for sorting by name (gS mapping)
  g:filemanager_sortorderrules = {}        Rules for setting custom sort order based on directory
