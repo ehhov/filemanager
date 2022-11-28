@@ -38,6 +38,7 @@ let s:respectwildignore    = get(g:, 'filemanager_respectwildignore',    0)
 let s:ignorecase           = get(g:, 'filemanager_ignorecase',          '')
 let s:sortmethod           = get(g:, 'filemanager_sortmethod',      'name')
 let s:sortfunc             = get(g:, 'filemanager_sortfunc',            '')
+let s:sortorderrules       = get(g:, 'filemanager_sortorderrules',      {})
 let s:sortorder = get(g:, 'filemanager_sortorder', '*/,*,.*/,.*,^__pycache__/$,\.bak$,\.swp$,\~$')
 let s:depthstr = '| '
 let s:depthstrmarked = '|+'
@@ -64,9 +65,11 @@ aug END
 
 let s:filetypepat = '\%([\*@=|/]\|!@\|\)'
 
-let s:tabvars = ['sortorder', 'sortmethod', 'sortreverse', 'ignorecase', 'filterdirs',
-                \'respectgitignore', 'showhidden', 'vertical', 'winsize']
-let s:sortreverse = 0  " for uniformity in s:initialize() and s:exit()
+let s:tabvars = ['sortorder', 'sortmethod', 'sortreverse', 'usesortrules',
+                \'ignorecase', 'filterdirs', 'respectgitignore', 'showhidden',
+                \'vertical', 'winsize']
+let s:sortreverse = 0   " for uniformity in s:initialize() and s:exit()
+let s:usesortrules = 1  " for uniformity as well
 
 " Required to be able to move filemanager windows between tabs
 let s:buflist = []
@@ -158,8 +161,22 @@ fun! s:getdircontents(path)  " {{{
 endfun  " }}}
 
 
+fun! s:getsortorder(path)  " {{{
+	if !b:fm_usesortrules
+		return b:fm_sortorder
+	endif
+	let l:path = a:path == '/' ? '/' : a:path[:-2]
+	for [l:pat, l:sortorder] in items(s:sortorderrules)
+		if match(l:path, '\C'.l:pat) != -1
+			return l:sortorder
+		endif
+	endfor
+	return b:fm_sortorder
+endfun  " }}}
+
+
 fun! s:sortbyname(list, path)  " {{{
-	let l:splitsortorder = split(b:fm_sortorder, '[^\\]\zs,')
+	let l:splitsortorder = split(s:getsortorder(a:path), '[^\\]\zs,')
 	call map(l:splitsortorder, 'substitute(v:val, "\\\\,", ",", "g")')
 	let l:matches = add(map(copy(l:splitsortorder), '[]'), [])
 	let l:rest = [[], [], [], []]
@@ -668,6 +685,17 @@ fun! s:togglesortreverse()  " {{{
 endfun  " }}}
 
 
+fun! s:toggleusesortrules()  " {{{
+	let b:fm_usesortrules = !b:fm_usesortrules
+	let l:path = s:undercursor(1)
+	let l:winview = winsaveview()
+	call s:printtree()
+	call winrestview(l:winview)
+	call s:movecursorbypath(l:path)
+	echo 'Using sort order rules '.(b:fm_usesortrules ? 'ON' : 'OFF')
+endfun  " }}}
+
+
 fun! s:setsortmethod()  " {{{
 	let l:choice = confirm("Set sort method:", "By &name\nBy &time")
 	if l:choice == 0
@@ -913,9 +941,19 @@ fun! s:loadbookmarks()  " {{{
 		if empty(l:saved) || empty(l:saved[0]) || empty(eval(l:saved[0]))
 			echo 'Bookmark file empty'
 		else
-			call extend(s:bookmarks, eval(l:saved[0]))
+			call extend(s:bookmarks, s:fixoldbookmarks(eval(l:saved[0])))
 		endif
 	endif
+endfun  " }}}
+
+
+fun! s:fixoldbookmarks(bookmarks)  " {{{
+	for [l:name, l:bookmark] in items(a:bookmarks)
+		if len(l:bookmark) == 15
+			call insert(l:bookmark, string(s:usesortrules), 9)
+		endif
+	endfor
+	return a:bookmarks
 endfun  " }}}
 
 
@@ -1906,6 +1944,12 @@ fun! s:checkconfig()  " {{{
 	endif
 	let s:checkconfigdone = 1
 	let s:sortorder = s:checksortorder(s:sortorder)
+	call filter(s:sortorderrules, '!s:checkregex(v:key)')
+	call map(s:sortorderrules, 's:checksortorder(v:val)')
+	for l:key in filter(keys(s:sortorderrules), 'v:val[-1:-1] != "$"')
+		let s:sortorderrules[l:key.'[^/]*$'] = s:sortorderrules[l:key]
+	endfor
+	call filter(s:sortorderrules, 'v:key[-1:-1] == "$"')
 	echohl ErrorMsg
 	if s:winsize < 1 || s:winsize > 99
 		echomsg 'Invalid window size "'.s:winsize.'". Variable set to 20'
@@ -1972,6 +2016,7 @@ fun! s:definemapcmd()  " {{{
 	nnoremap <nowait> <buffer>  gs       <cmd>call <sid>statcmd(<sid>undercursor(1))<cr>
 	nnoremap <nowait> <buffer>  gf       <cmd>call <sid>filecmd(<sid>undercursor(1))<cr>
 	nnoremap <nowait> <buffer>  gr       <cmd>call <sid>togglesortreverse()<cr>
+	nnoremap <nowait> <buffer>  gR       <cmd>call <sid>toggleusesortrules()<cr>
 	nnoremap <nowait> <buffer>  S        <cmd>call <sid>setsortmethod()<cr>
 	nnoremap <nowait> <buffer>  gS       <cmd>call <sid>setsortorder()<cr>
 	nnoremap <nowait> <buffer>  gi       <cmd>call <sid>setignorecase()<cr>

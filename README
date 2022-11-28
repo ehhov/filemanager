@@ -23,6 +23,7 @@ Features
   * Run shell commands in current tree root or in the directory under 
     the cursor; open terminal window in these directories,
   * Hide files ignored by Git,
+  * Set custom sort order for directories based on their full path,
   * Filter tree contents by regex with support for nested and exclusive 
     filters,
   * Mark files interactively or by regex; yank files into a list shared 
@@ -85,9 +86,9 @@ Further functionality is best presented by mappings and commands themselves:
   so that you never lose any older state. Backup bookmarks are also 
   saved when a filemanager buffer is closed.
 
-  Bookmarks store all buffer configuration options (mappings gr, S, gS, 
-  gi, gd, gh, gG), orientation, window size, marked items, filters, open 
-  directories, and the cursor position.
+  Bookmarks store all buffer configuration options (mappings gr, gR, S, 
+  gS, gi, gd, gh, gG), orientation, window size, marked items, filters, 
+  open directories, and the cursor position.
 
   Almost any string can serve as a bookmark name. The only unavailable 
   names are 'file', 'write', and 'load' (and only when the bookmark file 
@@ -121,6 +122,7 @@ Further functionality is best presented by mappings and commands themselves:
   gs                    $ stat item under the cursor
   gf                    $ file item under the cursor
   gr                    toggle reverse sort order
+  gR                    toggle using sort order rules
   S                     set sort method
   gS                    set pattern order for sorting by name
   gi                    configure ignore case in :Filter, :Mark, :Yank commands
@@ -196,6 +198,8 @@ default values:
  g:filemanager_sortmethod = 'name'        Default sort method: only 'name' or 'time' (S mapping)
  g:filemanager_sortorder = '*/,*,.*/,.*,^__pycache__/$,\.bak$,\.swp$,\~$'
                                           Pattern order for sorting by name (gS mapping)
+ g:filemanager_sortorderrules = {}        Rules for setting custom sort order based on directory
+                                          path: last parts of full path are matched against keys
  g:filemanager_sortfunc = ''              Parameter passed to Vim's sort() to sort names
                                           within a pattern and elsewhere
 
