@@ -1215,7 +1215,7 @@ fun! s:open(path, mode)  " {{{
 		endif
 		silent wincmd p
 		exe 'confirm edit '.fnameescape(a:path)
-	elseif a:mode == 1  " single vertical window
+	elseif a:mode == 1 || a:mode == 2  " single vertical/horizontal window
 		" See note on :only in s:openterminal()
 		try
 			confirm only
@@ -1228,41 +1228,31 @@ fun! s:open(path, mode)  " {{{
 			return
 		endtry
 		exe 'new '.fnameescape(a:path)
-		exe 'wincmd '.(s:preferleft ? 'L' : 'H')
-		exe 'vertical resize '.((100 - l:winsize) * &columns / 100)
-	elseif a:mode == 2  " single horizontal window
-		" See note on :only in s:openterminal()
-		try
-			confirm only
-			silent only
-		catch /^Vim(only):/
-			echohl ErrorMsg
-			" Remove the leading Vim(only):
-			echomsg v:exception[10:]
-			echohl None
-			return
-		endtry
-		exe 'new '.fnameescape(a:path)
-		exe 'wincmd '.(s:preferbelow ? 'K' : 'J')
-		exe 'resize '.((100 - l:winsize) * &lines / 100)
+		exe 'wincmd '.(a:mode == 1 ? (s:preferleft ? 'L' : 'H')
+		               \: (s:preferbelow ? 'K' : 'J'))
+		exe (a:mode == 1 ? 'vertical ' : '').'resize '
+		    \.((100 - l:winsize) * (a:mode == 1 ? &columns : &lines) / 100)
 	elseif a:mode == 3  " above/below all and maximized
 		exe 'new '.fnameescape(a:path)
 		exe 'wincmd '.(s:preferbelow ? 'K' : 'J')
 		resize
 	elseif a:mode == 4  " new tab
 		exe 'tab new '.fnameescape(a:path)
-	elseif a:mode == 5  " new split on the side
+	elseif a:mode == 5 || a:mode == 6  " new horizontal/vertical split
 		let l:winview = winsaveview()
 		exe 'new '.fnameescape(a:path)
-		exe 'wincmd '.(s:preferbelow ? 'K' : 'J')
+		exe 'wincmd '.(a:mode == 5 ? (s:preferbelow ? 'K' : 'J')
+		               \: (s:preferleft ? 'H' : 'L'))
 		" :noautocmd should be safe when only resizing and returning
 		noautocmd silent wincmd p
-		exe 'wincmd '.(s:preferleft ? 'H' : 'L')
-		exe 'vertical resize '.(l:winsize * &columns / 100)
+		exe 'wincmd '.(b:fm_vertical ? (s:preferleft ? 'H' : 'L')
+		               \: (s:preferbelow ? 'J' : 'K'))
+		exe (b:fm_vertical ? 'vertical ' : '').'resize '
+		    \.(l:winsize * (b:fm_vertical ? &columns : &lines) / 100)
 		call winrestview(l:winview)
 		noautocmd silent wincmd p
 		wincmd =
-	elseif a:mode == 6  " replace filemanager window
+	elseif a:mode == 7  " replace filemanager window
 		exe 'edit '.fnameescape(a:path)
 	endif
 endfun  " }}}
@@ -2000,7 +1990,8 @@ fun! s:definemapcmd()  " {{{
 	nnoremap <nowait> <buffer>  O        <cmd>call <sid>open(<sid>undercursor(1), 3)<cr>
 	nnoremap <nowait> <buffer>  t        <cmd>call <sid>open(<sid>undercursor(1), 4)<cr>
 	nnoremap <nowait> <buffer>  s        <cmd>call <sid>open(<sid>undercursor(1), 5)<cr>
-	nnoremap <nowait> <buffer>  E        <cmd>call <sid>open(<sid>undercursor(1), 6)<cr>
+	nnoremap <nowait> <buffer>  a        <cmd>call <sid>open(<sid>undercursor(1), 6)<cr>
+	nnoremap <nowait> <buffer>  E        <cmd>call <sid>open(<sid>undercursor(1), 7)<cr>
 	nnoremap <nowait> <buffer>  T        <cmd>call <sid>openterminal(0)<cr>
 	nnoremap <nowait> <buffer>  U        <cmd>call <sid>openterminal(1)<cr>
 	nnoremap <nowait> <buffer>  l        <cmd>call <sid>descenddir(<sid>undercursor(1), 1)<cr>

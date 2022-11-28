@@ -107,6 +107,7 @@ Further functionality is best presented by mappings and commands themselves:
   O                     -- open horizontally and maximize
   t                     -- in a new tab
   s                     -- split horizontally alongside existing windows
+  a                     -- split vertically alongside existing windows
   E                     -- in filemanager's window (thus close it)
   T                     open terminal to the side or above/below
   U                     change to directory under the cursor and open terminal
