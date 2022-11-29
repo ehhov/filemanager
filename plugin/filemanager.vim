@@ -595,9 +595,11 @@ fun! s:refreshtree(force)  " {{{
 	if l:refreshed[0] == 0
 		if a:force < 0 || b:fm_yankedticksave < s:yankedtick
 		   \ || b:fm_markedticksave < b:fm_markedtick
+			let l:path = s:undercursor(1)
 			let l:winview = winsaveview()
 			call s:printtree()
 			call winrestview(l:winview)
+			call s:movecursorbypath(l:path)
 		endif
 		return
 	endif
