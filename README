@@ -200,8 +200,10 @@ default values:
  g:filemanager_newestfirst = 1            Place newest first by default when sorting by time
  g:filemanager_sortorder = '*/,*,.*/,.*,^__pycache__/$,\.bak$,\.swp$,\~$'
                                           Pattern order for sorting by name (gS mapping)
- g:filemanager_sortorderrules = {}        Rules for setting custom sort order based on directory
-                                          path: last parts of full path are matched against keys
+ g:filemanager_sortrules = {}             Rules for custom sorting based on directory path:
+                                          last parts of full path are matched against keys;
+                                          values are 'name:sortorder', 'obey:sortorder',
+                                          'time:newest/oldest', 'name', or 'time'
  g:filemanager_sortfunc = ''              Parameter passed to Vim's sort() to sort names
                                           within a pattern and elsewhere
 

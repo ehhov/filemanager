@@ -39,7 +39,7 @@ let s:ignorecase           = get(g:, 'filemanager_ignorecase',          '')
 let s:sortmethod           = get(g:, 'filemanager_sortmethod',      'name')
 let s:newestfirst          = get(g:, 'filemanager_newestfirst',          1)
 let s:sortfunc             = get(g:, 'filemanager_sortfunc',            '')
-let s:sortorderrules       = get(g:, 'filemanager_sortorderrules',      {})
+let s:sortrules            = get(g:, 'filemanager_sortrules',           {})
 let s:sortorder = get(g:, 'filemanager_sortorder', '*/,*,.*/,.*,^__pycache__/$,\.bak$,\.swp$,\~$')
 let s:depthstr = '| '
 let s:depthstrmarked = '|+'
@@ -162,22 +162,8 @@ fun! s:getdircontents(path)  " {{{
 endfun  " }}}
 
 
-fun! s:getsortorder(path)  " {{{
-	if !b:fm_usesortrules
-		return b:fm_sortorder
-	endif
-	let l:path = a:path == '/' ? '/' : a:path[:-2]
-	for [l:pat, l:sortorder] in items(s:sortorderrules)
-		if match(l:path, '\C'.l:pat) != -1
-			return l:sortorder
-		endif
-	endfor
-	return b:fm_sortorder
-endfun  " }}}
-
-
-fun! s:sortbyname(list, path)  " {{{
-	let l:splitsortorder = split(s:getsortorder(a:path), '[^\\]\zs,')
+fun! s:sortbyname(list, path, sortorder)  " {{{
+	let l:splitsortorder = split(a:sortorder, '[^\\]\zs,')
 	call map(l:splitsortorder, 'substitute(v:val, "\\\\,", ",", "g")')
 	let l:matches = add(map(copy(l:splitsortorder), '[]'), [])
 	let l:rest = [[], [], [], []]
@@ -220,18 +206,35 @@ fun! s:sortbyname(list, path)  " {{{
 endfun  " }}}
 
 
-fun! s:sortbytime(list, path)  " {{{
+fun! s:sortbytime(list, path, newest)  " {{{
 	let l:list = map(a:list, 'getftime(a:path.v:val)." ".v:val')
 	call map(sort(l:list, 'N'), 'substitute(v:val, "^-\\?\\d* ", "", "")')
-	return s:newestfirst ? reverse(l:list) : l:list
+	return a:newest ? reverse(l:list) : l:list
+endfun  " }}}
+
+
+fun! s:getsortrule(path)  " {{{
+	if !b:fm_usesortrules
+		return b:fm_sortmethod
+	endif
+	for [l:pat, l:rule] in items(s:sortrules)
+		if match(a:path, '\C'.l:pat) != -1
+			return l:rule
+		endif
+	endfor
+	return b:fm_sortmethod
 endfun  " }}}
 
 
 fun! s:sort(dic, path)  " {{{
-	if b:fm_sortmethod == 'name'
-		let l:sorted = s:sortbyname(keys(a:dic), a:path)
-	elseif b:fm_sortmethod == 'time'
-		let l:sorted = s:sortbytime(keys(a:dic), a:path)
+	let l:rule = s:getsortrule(a:path == '/' ? '/' : a:path[:-2])
+	if l:rule[:3] == 'name' || (l:rule[:3] == 'obey' && b:fm_sortmethod == 'name')
+		let l:order = len(l:rule) > 5 ? l:rule[5:] : b:fm_sortorder
+		let l:sorted = s:sortbyname(keys(a:dic), a:path, l:order)
+	else
+		let l:order = l:rule[:3] == 'time' && len(l:rule) > 5 ?
+		              \(l:rule[5] == 'n') : s:newestfirst
+		let l:sorted = s:sortbytime(keys(a:dic), a:path, l:order)
 	endif
 	return b:fm_sortreverse ? reverse(l:sorted) : l:sorted
 endfun  " }}}
@@ -694,7 +697,7 @@ fun! s:toggleusesortrules()  " {{{
 	call s:printtree()
 	call winrestview(l:winview)
 	call s:movecursorbypath(l:path)
-	echo 'Using sort order rules '.(b:fm_usesortrules ? 'ON' : 'OFF')
+	echo 'Using sort rules '.(b:fm_usesortrules ? 'ON' : 'OFF')
 endfun  " }}}
 
 
@@ -1937,12 +1940,15 @@ fun! s:checkconfig()  " {{{
 	endif
 	let s:checkconfigdone = 1
 	let s:sortorder = s:checksortorder(s:sortorder)
-	call filter(s:sortorderrules, '!s:checkregex(v:key)')
-	call map(s:sortorderrules, 's:checksortorder(v:val)')
-	for l:key in filter(keys(s:sortorderrules), 'v:val[-1:-1] != "$"')
-		let s:sortorderrules[l:key.'[^/]*$'] = s:sortorderrules[l:key]
+	call filter(s:sortrules, 'v:val[:3] == "name" || v:val[:3] == "time"'
+	                         \.'|| (v:val[:3] == "obey" && len(v:val) > 5)')
+	call filter(s:sortrules, '!s:checkregex(v:key)')
+	call map(s:sortrules, '(v:val[0] == "n" && len(v:val) > 5) || v:val[0] == "o" ?'
+	                      \.'v:val[:4].s:checksortorder(v:val[5:]) : v:val')
+	for l:key in filter(keys(s:sortrules), 'v:val[-1:-1] != "$"')
+		let s:sortrules[l:key.'[^/]*$'] = s:sortrules[l:key]
 	endfor
-	call filter(s:sortorderrules, 'v:key[-1:-1] == "$"')
+	call filter(s:sortrules, 'v:key[-1:-1] == "$"')
 	echohl ErrorMsg
 	if s:winsize < 1 || s:winsize > 99
 		echomsg 'Invalid window size "'.s:winsize.'". Variable set to 20'
