@@ -1239,16 +1239,17 @@ fun! s:open(path, mode)  " {{{
 	elseif a:mode == 4  " new tab
 		exe 'tab new '.fnameescape(a:path)
 	elseif a:mode == 5 || a:mode == 6  " new horizontal/vertical split
+		let l:vertical = b:fm_vertical
 		let l:winview = winsaveview()
 		exe 'new '.fnameescape(a:path)
-		exe 'wincmd '.(a:mode == 5 ? (s:preferbelow ? 'K' : 'J')
-		               \: (s:preferleft ? 'H' : 'L'))
+		exe 'wincmd '.(a:mode == 5 ? (s:preferbelow == l:vertical ? 'K' : 'J')
+		               \: (s:preferleft == l:vertical ? 'H' : 'L'))
 		" :noautocmd should be safe when only resizing and returning
 		noautocmd silent wincmd p
-		exe 'wincmd '.(b:fm_vertical ? (s:preferleft ? 'H' : 'L')
+		exe 'wincmd '.(l:vertical ? (s:preferleft ? 'H' : 'L')
 		               \: (s:preferbelow ? 'J' : 'K'))
-		exe (b:fm_vertical ? 'vertical ' : '').'resize '
-		    \.(l:winsize * (b:fm_vertical ? &columns : &lines) / 100)
+		exe (l:vertical ? 'vertical ' : '').'resize '
+		    \.(l:winsize * (l:vertical ? &columns : &lines) / 100)
 		call winrestview(l:winview)
 		noautocmd silent wincmd p
 		wincmd =
