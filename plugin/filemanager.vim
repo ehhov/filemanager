@@ -1979,7 +1979,7 @@ fun! s:checkconfig()  " {{{
 	for l:key in filter(keys(s:sortrules), 'v:val[-1:-1] != "$"')
 		let s:sortrules[l:key.'[^/]*$'] = s:sortrules[l:key]
 	endfor
-	call filter(s:sortrules, 'v:key[-1:-1] == "$"')
+	let s:sortrules = filter(copy(s:sortrules), 'v:key[-1:-1] == "$"')
 	echohl ErrorMsg
 	if s:winsize < 1 || s:winsize > 99
 		echomsg 'Invalid window size "'.s:winsize.'". Variable set to 20'
