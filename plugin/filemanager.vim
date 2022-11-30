@@ -241,6 +241,7 @@ endfun  " }}}
 
 
 fun! s:printcontents(dic, path, depth, linenr)  " {{{
+	let b:fm_maxdepth = a:depth > b:fm_maxdepth ? a:depth : b:fm_maxdepth
 	let l:path = substitute(a:path, '/$', '', '').'/'
 	let l:linenr = a:linenr
 
@@ -331,6 +332,7 @@ endfun  " }}}
 fun! s:printtree()  " {{{
 	let b:fm_yankedticksave = s:yankedtick
 	let b:fm_markedticksave = b:fm_markedtick
+	let b:fm_maxdepth = 0
 	setl modifiable noreadonly
 	silent %delete _
 	call setline(1, '..'.s:separator.'/')
@@ -483,6 +485,33 @@ fun! s:folddir(path, recursively)  " {{{
 	if !s:toggledir(l:path, 1)
 		call s:movecursorbypath(l:path)
 	endif
+endfun  " }}}
+
+
+fun! s:foldcontentsbydepth(tree, depth, maxdepth)  " {{{
+	if a:depth > a:maxdepth
+		call filter(a:tree, 0)
+		return
+	endif
+	for l:dic in filter(values(a:tree), 'type(v:val) == v:t_dict && !empty(v:val)')
+		call s:foldcontentsbydepth(l:dic, a:depth+1, a:maxdepth)
+	endfor
+endfun  " }}}
+
+
+fun! s:foldbydepth(decrease)  " {{{
+	if b:fm_maxdepth == 1
+		echo 'Nothing left to fold'
+		return
+	endif
+	let l:maxdepth = a:decrease > 0 && b:fm_maxdepth > a:decrease ? b:fm_maxdepth - a:decrease : 1
+	let l:path = split(s:undercursor(1), '/', 1)
+	let l:path = join(l:path[:l:maxdepth + len(split(b:fm_treeroot, '/'))], '/')
+	call s:foldcontentsbydepth(b:fm_tree, 1, l:maxdepth)
+	let l:winview = winsaveview()
+	call s:printtree()
+	call winrestview(l:winview)
+	call s:movecursorbypath(l:path)
 endfun  " }}}
 
 
@@ -2011,6 +2040,8 @@ fun! s:definemapcmd()  " {{{
 	nnoremap <nowait> <buffer>  <left>   <cmd>call <sid>parentdir()<cr>
 	nnoremap <nowait> <buffer>  zc       <cmd>call <sid>folddir(<sid>undercursor(1), 0)<cr>
 	nnoremap <nowait> <buffer>  zC       <cmd>call <sid>folddir(<sid>undercursor(1), 1)<cr>
+	nnoremap <nowait> <buffer>  zm       <cmd>call <sid>foldbydepth(v:count1)<cr>
+	nnoremap <nowait> <buffer>  zM       <cmd>call <sid>foldbydepth(-1)<cr>
 	nnoremap <nowait> <buffer>  zo       <cmd>call <sid>toggledir(<sid>undercursor(1), 2)<cr>
 	nnoremap <nowait> <buffer>  c        <cmd>call <sid>cmdundercursor()<cr>
 	nnoremap <nowait> <buffer>  x        <cmd>call <sid>openexternal(<sid>undercursor(1))<cr>
