@@ -242,11 +242,10 @@ endfun  " }}}
 
 fun! s:printcontents(dic, path, depth, linenr)  " {{{
 	let b:fm_maxdepth = a:depth > b:fm_maxdepth ? a:depth : b:fm_maxdepth
-	let l:path = substitute(a:path, '/$', '', '').'/'
 	let l:linenr = a:linenr
 
-	for l:name in s:sort(a:dic, l:path)
-		let l:ftype = getftype(l:path.l:name)
+	for l:name in s:sort(a:dic, a:path)
+		let l:ftype = getftype(a:path.l:name)
 		if l:name == ''
 			" This is where timestamps are stored
 			if len(a:dic) > 1
@@ -256,7 +255,7 @@ fun! s:printcontents(dic, path, depth, linenr)  " {{{
 			let l:line = s:separator
 		elseif l:ftype == 'dir'
 			let l:line = l:name.s:separator.'/'
-		elseif l:ftype == 'link' && empty(glob(escape(fnameescape(l:path.l:name), '~'), 1, 1, 0))
+		elseif l:ftype == 'link' && empty(glob(escape(fnameescape(a:path.l:name), '~'), 1, 1, 0))
 			let l:line = l:name.s:separator.'!@'
 		elseif l:ftype == 'link'
 			let l:line = l:name.s:separator.'@'
@@ -264,15 +263,15 @@ fun! s:printcontents(dic, path, depth, linenr)  " {{{
 			let l:line = l:name.s:separator.'='
 		elseif l:ftype == 'fifo'
 			let l:line = l:name.s:separator.'|'
-		elseif executable(l:path.l:name)
+		elseif executable(a:path.l:name)
 			let l:line = l:name.s:separator.'*'
 		else
 			let l:line = l:name.s:separator
 		endif
 
-		if index(b:fm_marked, l:path.l:name) != -1
+		if index(b:fm_marked, a:path.l:name) != -1
 			let l:line = repeat(s:depthstrmarked, a:depth).s:separator.l:line
-		elseif index(s:yanked, l:path.l:name) != -1
+		elseif index(s:yanked, a:path.l:name) != -1
 			let l:line = repeat(s:depthstryanked, a:depth).s:separator.l:line
 		else
 			let l:line = repeat(s:depthstr, a:depth).s:separator.l:line
@@ -283,7 +282,7 @@ fun! s:printcontents(dic, path, depth, linenr)  " {{{
 
 		let l:contents = a:dic[l:name]
 		if type(l:contents) == v:t_dict && !empty(l:contents)
-			let l:linenr = s:printcontents(l:contents, l:path.l:name, a:depth+1, l:linenr)
+			let l:linenr = s:printcontents(l:contents, a:path.l:name.'/', a:depth+1, l:linenr)
 		endif
 	endfor
 
@@ -325,7 +324,7 @@ fun! s:setbufname()  " {{{
 	" Buffer number required for uniqueness
 	let l:str = '[filemanager:'.bufnr().(b:fm_auxiliary ? ':AUX' : '')
 	let l:str .= (exists('b:fm_renamefrom') ? ':RENAME' : '').']'
-	silent exe 'file '.fnameescape(l:str.' '.substitute(b:fm_treeroot, '/$', '', '').'/')
+	silent exe 'file '.fnameescape(l:str.' '.b:fm_treeroot)
 endfun  " }}}
 
 
@@ -336,7 +335,7 @@ fun! s:printtree()  " {{{
 	setl modifiable noreadonly
 	silent %delete _
 	call setline(1, '..'.s:separator.'/')
-	call setline(2, fnamemodify(b:fm_treeroot, ':t').s:separator.'/')
+	call setline(2, fnamemodify(b:fm_treeroot, ':h:t').s:separator.'/')
 	if empty(b:fm_filters)
 		call s:printcontents(b:fm_tree, b:fm_treeroot, 1, 3)
 	else
@@ -362,9 +361,9 @@ fun! s:undercursor(keeptrailslash, linenr=-1, lines=0)  " {{{
 	let l:linenr = a:linenr < 0 ? line('.') : a:linenr
 
 	if l:linenr == 1 && type(a:lines) != v:t_list
-		return fnamemodify(b:fm_treeroot, ':h')
+		return fnamemodify(b:fm_treeroot, ':h:h')
 	elseif l:linenr == 2 && type(a:lines) != v:t_list
-		return b:fm_treeroot
+		return fnamemodify(b:fm_treeroot, ':h')
 	endif
 
 	let l:line = type(a:lines) == v:t_list ? a:lines[l:linenr] : getline(l:linenr)
@@ -387,7 +386,7 @@ fun! s:undercursor(keeptrailslash, linenr=-1, lines=0)  " {{{
 		endif
 	endwhile
 
-	return substitute(b:fm_treeroot, '/$', '', '').'/'.join(l:path, '/')
+	return b:fm_treeroot.join(l:path, '/')
 endfun  " }}}
 
 
@@ -418,6 +417,29 @@ fun! s:movecursorbypath(path)  " {{{
 	let l:linenr += (a:path[-1:-1] == '/')
 	call cursor(l:linenr, 0)
 	return 0
+endfun  " }}}
+
+
+fun! s:movetreecontents(from, to)  " {{{
+	let l:to = s:simplify(a:to)
+	if l:to[:len(b:fm_treeroot)-1] !=# b:fm_treeroot
+		return
+	endif
+	let l:dicfrom = b:fm_tree
+	let l:split = split(a:from[len(b:fm_treeroot):], '/')
+	for l:name in l:split[:-2]
+		let l:dicfrom = l:dicfrom[l:name]
+	endfor
+	let l:namefrom = l:split[-1]
+	let l:dicto = b:fm_tree
+	let l:split = split(l:to[len(b:fm_treeroot):], '/')
+	for l:name in l:split[:-2]
+		if !has_key(l:dicto, l:name)
+			return
+		endif
+		let l:dicto = l:dicto[l:name]
+	endfor
+	let l:dicto[l:split[-1]] = remove(l:dicfrom, l:namefrom)
 endfun  " }}}
 
 
@@ -477,7 +499,7 @@ fun! s:folddir(path, recursively)  " {{{
 		if len(l:path) < 2
 			let l:path = b:fm_treeroot
 		else
-			let l:path = b:fm_treeroot.'/'.l:path[0]
+			let l:path = b:fm_treeroot.l:path[0]
 		endif
 	else
 		let l:path = fnamemodify(a:path, ':h')
@@ -505,8 +527,8 @@ fun! s:foldbydepth(decrease)  " {{{
 		return
 	endif
 	let l:limit = a:decrease > 0 && b:fm_maxdepth > a:decrease ? b:fm_maxdepth - a:decrease : 1
-	let l:path = split(s:undercursor(1), '/', 1)
-	let l:path = join(l:path[:l:limit + len(split(b:fm_treeroot, '/'))], '/')
+	let l:path = split(s:undercursor(1)[len(b:fm_treeroot):], '/', 1)
+	let l:path = b:fm_treeroot.join(l:path[:l:limit-1], '/')
 	call s:foldcontentsbydepth(b:fm_tree, 1, l:limit)
 	let l:winview = winsaveview()
 	call s:printtree()
@@ -516,9 +538,9 @@ endfun  " }}}
 
 
 fun! s:descenddir(path, onlyone)  " {{{
-	let l:cmp = substitute(b:fm_treeroot, '/$', '', '').'/'
-	if a:path[:len(l:cmp)-1] !=# l:cmp && a:path !=# b:fm_treeroot
-	   \ && a:path !=# fnamemodify(b:fm_treeroot, ':h')
+	if a:path[:len(b:fm_treeroot)-1] !=# b:fm_treeroot
+	   \&& a:path !=# fnamemodify(b:fm_treeroot, ':h')
+	   \&& a:path !=# fnamemodify(b:fm_treeroot, ':h:h')
 		" Happens when the user tries to s:openbyname() by abs. path
 		echo 'Directory out of reach: "'.a:path.'"'
 		return
@@ -549,7 +571,7 @@ fun! s:descenddir(path, onlyone)  " {{{
 		endif
 		let b:fm_tree = b:fm_tree[l:name]
 	endfor
-	let b:fm_treeroot = substitute(b:fm_treeroot, '/$', '', '').'/'.join(l:list, '/')
+	let b:fm_treeroot = b:fm_treeroot.join(l:list, '/').'/'
 	if empty(b:fm_tree)
 		let b:fm_tree = s:getdircontents(b:fm_treeroot)
 	endif
@@ -568,16 +590,16 @@ endfun  " }}}
 
 
 fun! s:parentdir()  " {{{
-	let newroot = fnamemodify(b:fm_treeroot, ':h')
-	if b:fm_treeroot ==# l:newroot
+	if b:fm_treeroot == '/'
 		echo 'Already in the uppermost directory'
 		return
 	endif
 	let l:setcol = line('.') > 2
 	let l:path = s:undercursor(1, line('.') > 2 ? line('.') : 2)
 	let l:oldtree = b:fm_tree
-	let l:oldrootname = fnamemodify(b:fm_treeroot, ':t')
-	let b:fm_treeroot = l:newroot
+	let l:newroot = fnamemodify(b:fm_treeroot, ':h:h')
+	let l:oldrootname = fnamemodify(b:fm_treeroot, ':h:t')
+	let b:fm_treeroot = l:newroot == '/' ? '/' : l:newroot.'/'
 	let b:fm_tree = s:getdircontents(b:fm_treeroot)
 	if type(get(b:fm_tree, l:oldrootname, 0)) == v:t_dict
 		let b:fm_tree[l:oldrootname] = l:oldtree
@@ -600,7 +622,7 @@ fun! s:refreshcontents(dic, path, force)  " {{{
 		let l:anyupdated = 0
 		for [l:name, l:contents] in items(a:dic)
 			if type(l:contents) == v:t_dict && !empty(l:contents)
-				let [l:updated, a:dic[l:name]] = s:refreshcontents(l:contents, a:path.'/'.l:name, a:force)
+				let [l:updated, a:dic[l:name]] = s:refreshcontents(l:contents, a:path.l:name.'/', a:force)
 				if l:updated
 					let l:anyupdated = 1
 				endif
@@ -612,7 +634,7 @@ fun! s:refreshcontents(dic, path, force)  " {{{
 	for l:name in keys(l:newtree)
 		let l:contents = get(a:dic, l:name, 0)
 		if type(l:contents) == v:t_dict && !empty(l:contents)
-			let l:newtree[l:name] = s:refreshcontents(l:contents, a:path.'/'.l:name, a:force)[1]
+			let l:newtree[l:name] = s:refreshcontents(l:contents, a:path.l:name.'/', a:force)[1]
 		endif
 	endfor
 	return [1, l:newtree]
@@ -638,34 +660,9 @@ fun! s:refreshtree(force)  " {{{
 	let l:winview = winsaveview()
 	call s:printtree()
 	call winrestview(l:winview)
-	let l:cmp = substitute(b:fm_treeroot, '/$', '', '').'/'
-	if l:path[:len(l:cmp)-1] ==# l:cmp
+	if l:path[:len(b:fm_treeroot)-1] ==# b:fm_treeroot
 		call s:movecursorbypath(l:path)
 	endif
-endfun  " }}}
-
-
-fun! s:movetreecontents(from, to)  " {{{
-	let l:to = s:simplify(a:to)
-	let l:cmp = substitute(b:fm_treeroot, '/$', '', '').'/'
-	if l:to[:len(l:cmp)-1] !=# l:cmp
-		return
-	endif
-	let l:dicfrom = b:fm_tree
-	let l:split = split(a:from[len(b:fm_treeroot):], '/')
-	for l:name in l:split[:-2]
-		let l:dicfrom = l:dicfrom[l:name]
-	endfor
-	let l:namefrom = l:split[-1]
-	let l:dicto = b:fm_tree
-	let l:split = split(l:to[len(b:fm_treeroot):], '/')
-	for l:name in l:split[:-2]
-		if !has_key(l:dicto, l:name)
-			return
-		endif
-		let l:dicto = l:dicto[l:name]
-	endfor
-	let l:dicto[l:split[-1]] = remove(l:dicfrom, l:namefrom)
 endfun  " }}}
 
 
@@ -831,7 +828,7 @@ endfun  " }}}
 " Bookmark actions {{{
 fun! s:opendirs(tree, relpath)  " {{{
 	let l:list = []
-	for l:name in s:sort(a:tree, b:fm_treeroot.'/'.a:relpath)
+	for l:name in s:sort(a:tree, b:fm_treeroot.a:relpath)
 		let l:contents = a:tree[l:name]
 		if type(l:contents) == v:t_dict && !empty(l:contents)
 			call add(l:list, a:relpath.l:name)
@@ -897,7 +894,7 @@ fun! s:bookmarkrestore(name)  " {{{
 	let b:fm_markedtick += 1  " since marked is also restored
 	let b:fm_tree = s:getdircontents(b:fm_treeroot)
 	for l:path in l:bookmark[2]
-		call s:toggledir(b:fm_treeroot.'/'.l:path, 2, 1)
+		call s:toggledir(b:fm_treeroot.l:path, 2, 1)
 	endfor
 	call s:printtree()
 	if s:movecursorbypath(l:bookmark[1])
@@ -1109,8 +1106,7 @@ fun! s:newdir()  " {{{
 		return
 	endif
 
-	let l:cmp = b:fm_treeroot == '/' ? '/' : b:fm_treeroot.'/'
-	let l:outside = l:path[:len(l:cmp)-1] !=# l:cmp
+	let l:outside = l:path[:len(b:fm_treeroot)-1] !=# b:fm_treeroot
 	if l:outside
 		if confirm("Create directory outside the current tree?", "&No\n&Yes") < 2
 			return
@@ -1125,8 +1121,8 @@ fun! s:newdir()  " {{{
 	if l:outside
 		return
 	endif
-	let l:name = l:path[len(l:cmp):]
-	let l:path = l:cmp
+	let l:name = l:path[len(b:fm_treeroot):]
+	let l:path = b:fm_treeroot
 	call s:refreshtree(0)
 	for l:dir in split(l:name, '/')
 		" Don't notify if already open
@@ -1413,23 +1409,22 @@ fun! s:markbypat(pattern, bang, yank)  " {{{
 		return
 	endif
 	let l:oldlen = len(l:list)
-	let l:cmp = b:fm_treeroot == '/' ? '/' : b:fm_treeroot.'/'
 	let l:pattern = a:pattern . (a:pattern[-1:-1] == '$' ? '' : '[^/]*$')
 	if a:bang
 		let l:i = -1
 		for l:path in l:list
 			let l:i += 1
-			if l:path[:len(l:cmp)-1] !=# l:cmp
+			if l:path[:len(b:fm_treeroot)-1] !=# b:fm_treeroot
 				echo 'Ignoring "'.l:path.'"'
 				continue
-			elseif match(l:path[len(l:cmp):], b:fm_ignorecase.l:pattern) != -1
+			elseif match(l:path[len(b:fm_treeroot):], b:fm_ignorecase.l:pattern) != -1
 				call remove(l:list, l:i)
 				let l:i -= 1
 			endif
 		endfor
 	else
 		let l:names = s:namematches(b:fm_tree, '', l:pattern)
-		call uniq(sort(extend(l:list, map(l:names, 'l:cmp.v:val'))))
+		call uniq(sort(extend(l:list, map(l:names, 'b:fm_treeroot.v:val'))))
 	endif
 	if l:oldlen != len(l:list)
 		let b:fm_markedtick += !a:yank
@@ -1703,11 +1698,10 @@ endfun  " }}}
 
 
 fun! s:renamemarked()  " {{{
-	let l:cmp = b:fm_treeroot == '/' ? '/' : b:fm_treeroot.'/'
 	if len(b:fm_marked) > 1
 		let l:marked = []
 		for l:path in sort(b:fm_marked)
-			if l:path[:len(l:cmp)-1] ==# l:cmp
+			if l:path[:len(b:fm_treeroot)-1] ==# b:fm_treeroot
 				call add(l:marked, l:path[len(b:fm_treeroot):])
 			else
 				echo 'Ignoring "'.l:path.'"'
@@ -1733,7 +1727,7 @@ fun! s:renamemarked()  " {{{
 	endif
 
 	let l:name = empty(b:fm_marked) ? s:undercursor(0) : b:fm_marked[0]
-	if l:name[:len(l:cmp)-1] !=# l:cmp
+	if l:name[:len(b:fm_treeroot)-1] !=# b:fm_treeroot
 		echo 'Unable to rename "'.l:name.'": outside the current tree'
 		return
 	endif
@@ -1750,7 +1744,7 @@ fun! s:renamemarked()  " {{{
 		let l:err = s:renamebylist([l:name], [l:destination])
 		" Probably renaming the file under the cursor
 		silent call s:refreshtree(0)
-		if !l:err && l:destination[:len(l:cmp)-1] ==# l:cmp
+		if !l:err && l:destination[:len(b:fm_treeroot)-1] ==# b:fm_treeroot
 			silent call s:movecursorbypath(l:destination)
 		endif
 	endif
@@ -2160,7 +2154,7 @@ fun! s:initialize(path, aux)  " {{{
 	let b:fm_markedsh = ''
 	let b:fm_markedshtick = 0
 
-	let b:fm_treeroot = substitute(a:path, '[^/]\zs/$', '', '')
+	let b:fm_treeroot = substitute(a:path, '/$', '', '').'/'
 	let b:fm_tree = s:getdircontents(b:fm_treeroot)
 
 	let b:fm_auxiliary = a:aux
