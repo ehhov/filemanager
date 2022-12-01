@@ -488,13 +488,13 @@ fun! s:folddir(path, recursively)  " {{{
 endfun  " }}}
 
 
-fun! s:foldcontentsbydepth(tree, depth, maxdepth)  " {{{
-	if a:depth > a:maxdepth
+fun! s:foldcontentsbydepth(tree, depth, limit)  " {{{
+	if a:depth > a:limit
 		call filter(a:tree, 0)
 		return
 	endif
 	for l:dic in filter(values(a:tree), 'type(v:val) == v:t_dict && !empty(v:val)')
-		call s:foldcontentsbydepth(l:dic, a:depth+1, a:maxdepth)
+		call s:foldcontentsbydepth(l:dic, a:depth+1, a:limit)
 	endfor
 endfun  " }}}
 
@@ -504,10 +504,10 @@ fun! s:foldbydepth(decrease)  " {{{
 		echo 'Nothing left to fold'
 		return
 	endif
-	let l:maxdepth = a:decrease > 0 && b:fm_maxdepth > a:decrease ? b:fm_maxdepth - a:decrease : 1
+	let l:limit = a:decrease > 0 && b:fm_maxdepth > a:decrease ? b:fm_maxdepth - a:decrease : 1
 	let l:path = split(s:undercursor(1), '/', 1)
-	let l:path = join(l:path[:l:maxdepth + len(split(b:fm_treeroot, '/'))], '/')
-	call s:foldcontentsbydepth(b:fm_tree, 1, l:maxdepth)
+	let l:path = join(l:path[:l:limit + len(split(b:fm_treeroot, '/'))], '/')
+	call s:foldcontentsbydepth(b:fm_tree, 1, l:limit)
 	let l:winview = winsaveview()
 	call s:printtree()
 	call winrestview(l:winview)
