@@ -1123,12 +1123,15 @@ fun! s:newdir()  " {{{
 	endif
 	let l:name = l:path[len(b:fm_treeroot):]
 	let l:path = b:fm_treeroot
-	call s:refreshtree(0)
+	let l:winview = winsaveview()
+	let b:fm_tree = s:refreshcontents(b:fm_tree, b:fm_treeroot, 0)[1]
 	for l:dir in split(l:name, '/')
 		" Don't notify if already open
-		silent call s:toggledir(l:path.l:dir, 2)
+		silent call s:toggledir(l:path.l:dir, 2, 1)
 		let l:path .= l:dir.'/'
 	endfor
+	call s:printtree()
+	call winrestview(l:winview)
 	call s:movecursorbypath(l:path)
 endfun  " }}}
 
