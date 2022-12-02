@@ -328,10 +328,13 @@ fun! s:setbufname()  " {{{
 endfun  " }}}
 
 
-fun! s:printtree()  " {{{
+fun! s:printtree(restview, movetopath='', movetotwo=0)  " {{{
 	let b:fm_yankedticksave = s:yankedtick
 	let b:fm_markedticksave = b:fm_markedtick
 	let b:fm_maxdepth = 0
+	if a:restview
+		let l:winview = winsaveview()
+	endif
 	setl modifiable noreadonly
 	silent %delete _
 	call setline(1, '..'.s:separator.'/')
@@ -350,9 +353,14 @@ fun! s:printtree()  " {{{
 		endif
 	endif
 	call s:setbufname()
-
 	if s:notifyoffilters && !empty(b:fm_filters)
 		echo 'Filters active'
+	endif
+	if a:restview
+		call winrestview(l:winview)
+	endif
+	if a:movetopath != '' && s:movecursorbypath(a:movetopath) && a:movetotwo
+		call cursor(2, 1)
 	endif
 endfun  " }}}
 
@@ -485,9 +493,7 @@ fun! s:toggledir(path, operation, dontprint=0)  " {{{
 	endif
 
 	if !a:dontprint
-		let l:winview = winsaveview()
-		call s:printtree()
-		call winrestview(l:winview)
+		call s:printtree(1)
 	endif
 	return 0
 endfun  " }}}
@@ -530,10 +536,7 @@ fun! s:foldbydepth(decrease)  " {{{
 	let l:path = split(s:undercursor(1)[len(b:fm_treeroot):], '/', 1)
 	let l:path = b:fm_treeroot.join(l:path[:l:limit-1], '/')
 	call s:foldcontentsbydepth(b:fm_tree, 1, l:limit)
-	let l:winview = winsaveview()
-	call s:printtree()
-	call winrestview(l:winview)
-	call s:movecursorbypath(l:path)
+	call s:printtree(1, l:path, 0)
 endfun  " }}}
 
 
@@ -577,7 +580,7 @@ fun! s:descenddir(path, onlyone)  " {{{
 	endif
 
 	let l:winview = winsaveview()
-	call s:printtree()
+	call s:printtree(0)
 	if !s:movecursorbypath(a:path) && l:setcol
 		call filter(l:winview, 'v:key == "col" || v:key == "coladd" || v:key == "curswant"')
 		let l:winview['col'] -= len(s:depthstr) * len(l:list)
@@ -605,7 +608,7 @@ fun! s:parentdir()  " {{{
 		let b:fm_tree[l:oldrootname] = l:oldtree
 	endif
 	let l:winview = winsaveview()
-	call s:printtree()
+	call s:printtree(0)
 	if !s:movecursorbypath(l:path) && l:setcol
 		call filter(l:winview, 'v:key == "col" || v:key == "coladd" || v:key == "curswant"')
 		let l:winview['col'] += len(s:depthstr)
@@ -646,23 +649,14 @@ fun! s:refreshtree(force)  " {{{
 	if l:refreshed[0] == 0
 		if a:force < 0 || b:fm_yankedticksave < s:yankedtick
 		   \ || b:fm_markedticksave < b:fm_markedtick
-			let l:path = s:undercursor(1)
-			let l:winview = winsaveview()
-			call s:printtree()
-			call winrestview(l:winview)
-			call s:movecursorbypath(l:path)
+			call s:printtree(1, s:undercursor(1), 0)
 		endif
 		return
 	endif
 	" simplify() required only after renaming by tree
 	let l:path = s:simplify(s:undercursor(1))
 	let b:fm_tree = l:refreshed[1]
-	let l:winview = winsaveview()
-	call s:printtree()
-	call winrestview(l:winview)
-	if l:path[:len(b:fm_treeroot)-1] ==# b:fm_treeroot
-		call s:movecursorbypath(l:path)
-	endif
+	call s:printtree(1, (l:path[:len(b:fm_treeroot)-1] ==# b:fm_treeroot ? l:path : ''), 0)
 endfun  " }}}
 
 
@@ -681,11 +675,7 @@ fun! s:setignorecase()  " {{{
 	else
 		let b:fm_ignorecase = ['', '\c', '\C'][l:choice-1]
 	endif
-	let l:path = s:undercursor(1)
-	let l:winview = winsaveview()
-	call s:printtree()
-	call winrestview(l:winview)
-	call s:movecursorbypath(l:path)
+	call s:printtree(1, s:undercursor(1), 0)
 endfun  " }}}
 
 
@@ -698,33 +688,21 @@ endfun  " }}}
 
 fun! s:togglefilterdirs()  " {{{
 	let b:fm_filterdirs = !b:fm_filterdirs
-	let l:path = s:undercursor(1)
-	let l:winview = winsaveview()
-	call s:printtree()
-	call winrestview(l:winview)
-	call s:movecursorbypath(l:path)
+	call s:printtree(1, s:undercursor(1), 1)
 	echo 'Filter directories '.(b:fm_filterdirs ? 'ON' : 'OFF')
 endfun  " }}}
 
 
 fun! s:togglesortreverse()  " {{{
 	let b:fm_sortreverse = !b:fm_sortreverse
-	let l:path = s:undercursor(1)
-	let l:winview = winsaveview()
-	call s:printtree()
-	call winrestview(l:winview)
-	call s:movecursorbypath(l:path)
+	call s:printtree(1, s:undercursor(1), 0)
 	echo 'Reverse sort order '.(b:fm_sortreverse ? 'ON' : 'OFF')
 endfun  " }}}
 
 
 fun! s:toggleusesortrules()  " {{{
 	let b:fm_usesortrules = !b:fm_usesortrules
-	let l:path = s:undercursor(1)
-	let l:winview = winsaveview()
-	call s:printtree()
-	call winrestview(l:winview)
-	call s:movecursorbypath(l:path)
+	call s:printtree(1, s:undercursor(1), 0)
 	echo 'Using sort rules '.(b:fm_usesortrules ? 'ON' : 'OFF')
 endfun  " }}}
 
@@ -736,11 +714,7 @@ fun! s:setsortmethod()  " {{{
 	else
 		let b:fm_sortmethod = ['name', 'time'][l:choice-1]
 	endif
-	let l:path = s:undercursor(1)
-	let l:winview = winsaveview()
-	call s:printtree()
-	call winrestview(l:winview)
-	call s:movecursorbypath(l:path)
+	call s:printtree(1, s:undercursor(1), 0)
 endfun  " }}}
 
 
@@ -755,11 +729,7 @@ fun! s:setsortorder()  " {{{
 		let l:sortorder = s:sortorder
 	endif
 	let b:fm_sortorder = s:checksortorder(l:sortorder)
-	let l:path = s:undercursor(1)
-	let l:winview = winsaveview()
-	call s:printtree()
-	call winrestview(l:winview)
-	call s:movecursorbypath(l:path)
+	call s:printtree(1, s:undercursor(1), 0)
 endfun  " }}}
 
 
@@ -806,7 +776,7 @@ fun! s:filtercmd(pattern, bang)  " {{{
 		call add(b:fm_filters, (a:bang ? '!' : ' ') . a:pattern . (a:pattern[-1:-1] == '$' ? '' : '[^/]*$'))
 	endif
 
-	call s:printtree()
+	call s:printtree(0)
 	call cursor(2, 1)
 	if empty(b:fm_filters)
 		echo 'All filters removed'
@@ -896,10 +866,7 @@ fun! s:bookmarkrestore(name)  " {{{
 	for l:path in l:bookmark[2]
 		call s:toggledir(b:fm_treeroot.l:path, 2, 1)
 	endfor
-	call s:printtree()
-	if s:movecursorbypath(l:bookmark[1])
-		call cursor(2, 1)
-	endif
+	call s:printtree(0, l:bookmark[1], 1)
 	let b:fm_changedticksave = b:changedtick
 	echomsg 'Bookmark "'.a:name.'" restored'
 endfun  " }}}
@@ -1123,16 +1090,13 @@ fun! s:newdir()  " {{{
 	endif
 	let l:name = l:path[len(b:fm_treeroot):]
 	let l:path = b:fm_treeroot
-	let l:winview = winsaveview()
 	let b:fm_tree = s:refreshcontents(b:fm_tree, b:fm_treeroot, 0)[1]
 	for l:dir in split(l:name, '/')
 		" Don't notify if already open
 		silent call s:toggledir(l:path.l:dir, 2, 1)
 		let l:path .= l:dir.'/'
 	endfor
-	call s:printtree()
-	call winrestview(l:winview)
-	call s:movecursorbypath(l:path)
+	call s:printtree(1, l:path, 0)
 endfun  " }}}
 
 
@@ -1432,9 +1396,7 @@ fun! s:markbypat(pattern, bang, yank)  " {{{
 	if l:oldlen != len(l:list)
 		let b:fm_markedtick += !a:yank
 		let s:yankedtick += a:yank
-		let l:winview = winsaveview()
-		call s:printtree()
-		call winrestview(l:winview)
+		call s:printtree(1)
 	endif
 endfun  " }}}
 
@@ -1466,9 +1428,7 @@ fun! s:mark(ends)  " {{{
 		let b:fm_marked += l:newpaths
 	endif
 	let b:fm_markedtick += 1
-	let l:winview = winsaveview()
-	call s:printtree()
-	call winrestview(l:winview)
+	call s:printtree(1)
 endfun  " }}}
 
 
@@ -1476,9 +1436,7 @@ fun! s:resetmarked()  " {{{
 	if !empty(b:fm_marked)
 		let b:fm_markedtick += 1
 		call filter(b:fm_marked, 0)
-		let l:winview = winsaveview()
-		call s:printtree()
-		call winrestview(l:winview)
+		call s:printtree(1)
 	endif
 endfun  " }}}
 
@@ -1509,9 +1467,7 @@ fun! s:yankmarked(list=0)  " {{{
 	elseif len(s:yanked) == l:oldlen
 		return
 	endif
-	let l:winview = winsaveview()
-	call s:printtree()
-	call winrestview(l:winview)
+	call s:printtree(1)
 endfun  " }}}
 
 
@@ -1549,9 +1505,7 @@ fun! s:resetyanked(list=0)  " {{{
 			return
 		endif
 	endif
-	let l:winview = winsaveview()
-	call s:printtree()
-	call winrestview(l:winview)
+	call s:printtree(1)
 endfun  " }}}
 
 
@@ -2172,7 +2126,7 @@ fun! s:initialize(path, aux)  " {{{
 		let &winfixheight = !b:fm_vertical
 	endif
 
-	call s:printtree()
+	call s:printtree(0)
 	call cursor(2, 1)
 endfun  " }}}
 
