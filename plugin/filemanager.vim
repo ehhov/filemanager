@@ -78,8 +78,6 @@ let s:buflist = []
 " Script-wide marked items: yanked
 let s:yanked = []
 let s:yankedtick = 0
-let s:yankedsh = ''
-let s:yankedshtick = 0
 
 let s:bookmarks = {}
 let s:bookmarkvars = ['treeroot', 'filters', 'marked'] + s:tabvars
@@ -146,11 +144,7 @@ fun! s:getdircontents(path)  " {{{
 		let l:list += glob(l:path.'/.*', !s:respectwildignore, 1, 1)
 	endif
 	for l:item in l:list
-		if isdirectory(l:item)
-			let l:dic[fnamemodify(l:item, ':t')] = {}
-		else
-			let l:dic[fnamemodify(l:item, ':t')] = 0
-		endif
+		let l:dic[fnamemodify(l:item, ':t')] = isdirectory(l:item) ? {} : 0
 	endfor
 	" This was measured to be (slightly) faster at any length of l:ignored
 	for l:ex in l:ignored
@@ -374,27 +368,21 @@ fun! s:undercursor(keeptrailslash, linenr=-1, lines=0)  " {{{
 		return fnamemodify(b:fm_treeroot, ':h')
 	endif
 
-	let l:line = type(a:lines) == v:t_list ? a:lines[l:linenr] : getline(l:linenr)
-	let l:nodepth = substitute(l:line, '^'.s:depthstrpat.'*'.s:seppat, '', '')
-	let l:path = [substitute(l:nodepth, s:seppat.s:filetypepat.'$', '', '')]
-	let l:depth = len(l:line) - len(l:nodepth)
-	if !a:keeptrailslash && l:path[0] == ''
-		call remove(l:path, 0)
-	endif
+	let l:path = ''
+	let l:depth = len(s:depthstr) * b:fm_maxdepth + len(s:separator) + 1
 
-	while l:depth > len(s:depthstr.s:separator)
-		let l:linenr -= 1
+	while l:depth > len(s:depthstr) + len(s:separator)
 		let l:line = type(a:lines) == v:t_list ? a:lines[l:linenr] : getline(l:linenr)
 		let l:nodepth = substitute(l:line, '^'.s:depthstrpat.'*'.s:seppat, '', '')
 		let l:otherdepth = len(l:line) - len(l:nodepth)
-
+		let l:linenr -= 1
 		if l:depth > l:otherdepth
-			call insert(l:path, substitute(l:nodepth, s:seppat.s:filetypepat.'$', '', ''))
+			let l:path = '/'.substitute(l:nodepth, s:seppat.s:filetypepat.'$', '', '').l:path
 			let l:depth = l:otherdepth
 		endif
 	endwhile
 
-	return b:fm_treeroot.join(l:path, '/')
+	return b:fm_treeroot[:-2].(!a:keeptrailslash && l:path[-1:-1] == '/' ? l:path[:-2] : l:path)
 endfun  " }}}
 
 
@@ -411,15 +399,14 @@ fun! s:movecursorbypath(path)  " {{{
 		let l:linenr += 1
 		let l:depth += 1
 		while 1
-			let l:line = getline(l:linenr)
-			if match(l:line, '\C^'.s:depthstrpat.'\{'.l:depth.'}'.s:seppat.'\V'.escape(l:name, '\').'\m'.s:seppat.s:filetypepat.'$') != -1
+			if match(getline(l:linenr), '\C^'.s:depthstrpat.'\{'.l:depth.'}'.s:seppat.'\V'.escape(l:name, '\').'\m'.s:seppat.s:filetypepat.'$') != -1
 				break
 			endif
-			let l:linenr += 1
-			if match(l:line, '\C^'.s:depthstrpat.'\{'.l:depth.'}') == -1 || l:linenr > l:lastnr
+			if match(getline(l:linenr), '\C^'.s:depthstrpat.'\{'.l:depth.'}') == -1 || l:linenr >= l:lastnr
 				echo 'Path not visible or non-existent: "'.a:path.'"'
 				return 1
 			endif
+			let l:linenr += 1
 		endwhile
 	endfor
 	let l:linenr += (a:path[-1:-1] == '/')
@@ -435,19 +422,20 @@ fun! s:movetreecontents(from, to)  " {{{
 	endif
 	let l:dicfrom = b:fm_tree
 	let l:split = split(a:from[len(b:fm_treeroot):], '/')
-	for l:name in l:split[:-2]
+	let l:namefrom = remove(l:split, -1)
+	for l:name in l:split
 		let l:dicfrom = l:dicfrom[l:name]
 	endfor
-	let l:namefrom = l:split[-1]
 	let l:dicto = b:fm_tree
 	let l:split = split(l:to[len(b:fm_treeroot):], '/')
-	for l:name in l:split[:-2]
+	let l:nameto = remove(l:split, -1)
+	for l:name in l:split
 		if !has_key(l:dicto, l:name)
 			return
 		endif
 		let l:dicto = l:dicto[l:name]
 	endfor
-	let l:dicto[l:split[-1]] = remove(l:dicfrom, l:namefrom)
+	let l:dicto[l:nameto] = remove(l:dicfrom, l:namefrom)
 endfun  " }}}
 
 
@@ -541,19 +529,17 @@ endfun  " }}}
 
 
 fun! s:descenddir(path, onlyone)  " {{{
-	if a:path[:len(b:fm_treeroot)-1] !=# b:fm_treeroot
-	   \&& a:path !=# fnamemodify(b:fm_treeroot, ':h')
-	   \&& a:path !=# fnamemodify(b:fm_treeroot, ':h:h')
+	if a:path ==# fnamemodify(b:fm_treeroot, ':h')
+	   \|| a:path ==# fnamemodify(b:fm_treeroot, ':h:h')
+		echo 'Unable to descend upwards'
+		return
+	elseif a:path[:len(b:fm_treeroot)-1] !=# b:fm_treeroot
 		" Happens when the user tries to s:openbyname() by abs. path
 		echo 'Directory out of reach: "'.a:path.'"'
 		return
 	endif
 	let l:list = split(a:path[len(b:fm_treeroot):], '/')
-	if empty(l:list)
-		echo 'Unable to descend upwards'
-		return
-	endif
-	if !isdirectory(a:path)
+	if !isdirectory(a:path) && !empty(l:list)
 		call remove(l:list, -1)
 	endif
 	if empty(l:list)
@@ -561,7 +547,7 @@ fun! s:descenddir(path, onlyone)  " {{{
 		return
 	endif
 	if a:onlyone
-		let l:list = l:list[0:0]
+		call filter(l:list, 'v:key == 0')
 	endif
 
 	let l:setcol = 1
@@ -626,9 +612,7 @@ fun! s:refreshcontents(dic, path, force)  " {{{
 		for [l:name, l:contents] in items(a:dic)
 			if type(l:contents) == v:t_dict && !empty(l:contents)
 				let [l:updated, a:dic[l:name]] = s:refreshcontents(l:contents, a:path.l:name.'/', a:force)
-				if l:updated
-					let l:anyupdated = 1
-				endif
+				let l:anyupdated = l:updated ? 1 : l:anyupdated
 			endif
 		endfor
 		return [l:anyupdated, a:dic]
@@ -667,22 +651,21 @@ fun! s:toggleshowhidden()  " {{{
 endfun  " }}}
 
 
+fun! s:togglerespectgitignore()  " {{{
+	let b:fm_respectgitignore = !b:fm_respectgitignore
+	call s:refreshtree(1)
+	echo 'Respect .gitignore '.(b:fm_respectgitignore ? 'ON' : 'OFF')
+endfun  " }}}
+
+
 fun! s:setignorecase()  " {{{
 	let l:choice = confirm("Configure ignore case in Filter, Mark, and Yank:",
 	                      \"&Obey 'ignorecase'\n&Ignore\n&Don't ignore")
 	if l:choice == 0
 		return
-	else
-		let b:fm_ignorecase = ['', '\c', '\C'][l:choice-1]
 	endif
+	let b:fm_ignorecase = ['', '\c', '\C'][l:choice-1]
 	call s:printtree(1, s:undercursor(1), 0)
-endfun  " }}}
-
-
-fun! s:togglerespectgitignore()  " {{{
-	let b:fm_respectgitignore = !b:fm_respectgitignore
-	call s:refreshtree(1)
-	echo 'Respect .gitignore '.(b:fm_respectgitignore ? 'ON' : 'OFF')
 endfun  " }}}
 
 
@@ -711,9 +694,8 @@ fun! s:setsortmethod()  " {{{
 	let l:choice = confirm("Set sort method:", "By &name\nBy &time")
 	if l:choice == 0
 		return
-	else
-		let b:fm_sortmethod = ['name', 'time'][l:choice-1]
 	endif
+	let b:fm_sortmethod = ['name', 'time'][l:choice-1]
 	call s:printtree(1, s:undercursor(1), 0)
 endfun  " }}}
 
@@ -1067,36 +1049,36 @@ fun! s:newdir()  " {{{
 		return
 	endif
 
-	let l:path = s:simplify(substitute(l:path, '/$', '', '').'/'.l:name)
-	if !empty(glob(escape(fnameescape(l:path), '~'), 1, 1, 1))
-		echo 'Path exists: "'.l:path.'"'
+	let l:substring = matchstr(l:name, '^\s*\~[^/]*/')
+	let l:name = substitute(l:name, '^\s*\~[^/]*/', expandcmd(l:substring), '')
+	let l:name = l:name[0] == '/' ? l:name : substitute(l:path, '/$', '', '').'/'.l:name
+	let l:name = s:simplify(l:name)
+	if !empty(glob(escape(fnameescape(l:name), '~'), 1, 1, 1))
+		echo 'Path exists: "'.l:name.'"'
 		return
 	endif
 
-	let l:outside = l:path[:len(b:fm_treeroot)-1] !=# b:fm_treeroot
-	if l:outside
-		if confirm("Create directory outside the current tree?", "&No\n&Yes") < 2
-			return
-		endif
+	let l:outside = l:name[:len(b:fm_treeroot)-1] !=# b:fm_treeroot
+	if l:outside && confirm("Create directory outside the current tree?", "&No\n&Yes") < 2
+		return
 	endif
 	try
-		call mkdir(l:path)
+		call mkdir(l:name, 'p')
 	catch /^Vim\%((\a\+)\)\?:E739/
-		echo 'Failed to create directory "'.l:path.'"'
+		echo 'Failed to create directory "'.l:name.'"'
 		return
 	endtry
 	if l:outside
 		return
 	endif
-	let l:name = l:path[len(b:fm_treeroot):]
-	let l:path = b:fm_treeroot
+	let l:dirpath = b:fm_treeroot
 	let b:fm_tree = s:refreshcontents(b:fm_tree, b:fm_treeroot, 0)[1]
-	for l:dir in split(l:name, '/')
+	for l:dirstep in split(l:name[len(b:fm_treeroot):], '/')
 		" Don't notify if already open
-		silent call s:toggledir(l:path.l:dir, 2, 1)
-		let l:path .= l:dir.'/'
+		silent call s:toggledir(l:dirpath.l:dirstep, 2, 1)
+		let l:dirpath .= l:dirstep.'/'
 	endfor
-	call s:printtree(1, l:path, 0)
+	call s:printtree(1, l:dirpath, 0)
 endfun  " }}}
 
 
@@ -1114,43 +1096,38 @@ fun! s:openbyfind()  " {{{
 	endif
 
 	let l:winsize = b:fm_winsize
+	let l:vertical = b:fm_vertical
 	let l:autochdirsave = &autochdir
 	set noautochdir
 	if b:fm_auxiliary
 		let l:cleanupcode = ''
+	elseif winnr('#') == 0 || winnr('#') == winnr()
+		silent new
+		exe 'wincmd '.(l:vertical ? (s:preferleft ? 'L' : 'H')
+		               \: (s:preferbelow ? 'K' : 'J'))
+		exe (l:vertical ? 'vertical ' : '').'resize '
+		    \.((100 - l:winsize) * (l:vertical ? &columns : &lines) / 100)
+		let l:cleanupcode = 'silent close'
 	else
-		if winnr('#') == 0 || winnr('#') == winnr()
-			if b:fm_vertical
-				silent new
-				exe 'wincmd '.(s:preferleft ? 'L' : 'H')
-				exe 'vertical resize '.((100 - l:winsize) * &columns / 100)
-			else
-				silent new
-				exe 'wincmd '.(s:preferbelow ? 'K' : 'J')
-				exe 'resize '.((100 - l:winsize) * &lines / 100)
-			endif
-			let l:cleanupcode = 'silent close'
-		else
-			silent wincmd p
-			let l:cleanupcode = 'silent wincmd p'
-		endif
+		silent wincmd p
+		let l:cleanupcode = 'silent wincmd p'
 	endif
 
 	try
 		exe 'confirm '.v:count.'find '.fnameescape(l:name)
 	catch /^Vim(find):/
 		exe l:cleanupcode
-		let &autochdir = l:autochdirsave
 		echohl ErrorMsg
 		" Remove the leading Vim(find):
 		echomsg v:exception[10:]
 		echohl None
+	finally
+		let &autochdir = l:autochdirsave
 	endtry
-	let &autochdir = l:autochdirsave
 endfun  " }}}
 
 
-fun! s:openbyname(ext)  " {{{
+fun! s:openbyname(external)  " {{{
 	let l:path = fnamemodify(s:undercursor(1, line('.') > 3 ? line('.') : 3), ':h')
 	if s:dirreadable(l:path)
 		exe 'lcd '.fnameescape(l:path)
@@ -1166,11 +1143,9 @@ fun! s:openbyname(ext)  " {{{
 
 	let l:substring = matchstr(l:name, '^\s*\~[^/]*/')
 	let l:name = substitute(l:name, '^\s*\~[^/]*/', expandcmd(l:substring), '')
-	if l:name[0] != '/'
-		let l:name = substitute(l:path, '/$', '', '').'/'.l:name
-	endif
+	let l:name = l:name[0] == '/' ? l:name : substitute(l:path, '/$', '', '').'/'.l:name
 
-	if a:ext
+	if a:external
 		call s:openexternal(s:simplify(l:name))
 	else
 		call s:open(s:simplify(l:name), -1)
@@ -1186,9 +1161,7 @@ fun! s:open(path, mode)  " {{{
 		elseif a:mode == -1
 			call s:descenddir(a:path, 0)
 			return
-		elseif a:mode == 4
-			" Allow opening in a new tab
-		else
+		elseif a:mode != 4  " allow opening in a new tab
 			echo '"'.a:path.'" is a directory'
 			return
 		endif
@@ -1224,6 +1197,7 @@ fun! s:open(path, mode)  " {{{
 			echohl None
 			return
 		endtry
+		let b:fm_vertical = (a:mode == 1)
 		exe 'new '.fnameescape(a:path)
 		exe 'wincmd '.(a:mode == 1 ? (s:preferleft ? 'L' : 'H')
 		               \: (s:preferbelow ? 'K' : 'J'))
@@ -1350,15 +1324,29 @@ endfun  " }}}
 " Multiple file operations {{{
 fun! s:namematches(tree, relpath, pattern)  " {{{
 	let l:list = []
-	for [l:name, l:contents] in items(filter(copy(a:tree), 'v:key != ""'))
-		if match(a:relpath.l:name, b:fm_ignorecase.a:pattern) != -1
-			call add(l:list, a:relpath.l:name)
+	for [l:name, l:contents] in items(a:tree)
+		if l:name != '' && match(a:relpath.l:name, b:fm_ignorecase.a:pattern) != -1
+			call add(l:list, b:fm_treeroot.a:relpath.l:name)
 		endif
 		if type(l:contents) == v:t_dict && !empty(l:contents)
 			let l:list += s:namematches(l:contents, a:relpath.l:name.'/', a:pattern)
 		endif
 	endfor
 	return l:list
+endfun  " }}}
+
+
+fun! s:removematches(list, pattern)  " {{{
+	let l:i = -1
+	for l:path in a:list
+		let l:i += 1
+		if l:path[:len(b:fm_treeroot)-1] !=# b:fm_treeroot
+			echo 'Ignoring "'.l:path.'"'
+		elseif match(l:path[len(b:fm_treeroot):], b:fm_ignorecase.a:pattern) != -1
+			call remove(a:list, l:i)
+			let l:i -= 1
+		endif
+	endfor
 endfun  " }}}
 
 
@@ -1378,20 +1366,9 @@ fun! s:markbypat(pattern, bang, yank)  " {{{
 	let l:oldlen = len(l:list)
 	let l:pattern = a:pattern . (a:pattern[-1:-1] == '$' ? '' : '[^/]*$')
 	if a:bang
-		let l:i = -1
-		for l:path in l:list
-			let l:i += 1
-			if l:path[:len(b:fm_treeroot)-1] !=# b:fm_treeroot
-				echo 'Ignoring "'.l:path.'"'
-				continue
-			elseif match(l:path[len(b:fm_treeroot):], b:fm_ignorecase.l:pattern) != -1
-				call remove(l:list, l:i)
-				let l:i -= 1
-			endif
-		endfor
+		call s:removematches(l:list, l:pattern)
 	else
-		let l:names = s:namematches(b:fm_tree, '', l:pattern)
-		call uniq(sort(extend(l:list, map(l:names, 'b:fm_treeroot.v:val'))))
+		call uniq(sort(extend(l:list, s:namematches(b:fm_tree, '', l:pattern))))
 	endif
 	if l:oldlen != len(l:list)
 		let b:fm_markedtick += !a:yank
@@ -1458,7 +1435,8 @@ fun! s:yankmarked(list=0)  " {{{
 		echo 'Nothing new yanked. Current list:'
 		echo ' '.join(s:yanked, "\n ")
 	else
-		echo 'Yanked list extended by '.(len(s:yanked) - l:oldlen).' (from '.l:oldlen.' to '.len(s:yanked).')'
+		echo 'Yanked list extended by '.(len(s:yanked) - l:oldlen)
+		     \.' (from '.l:oldlen.' to '.len(s:yanked).')'
 		let s:yankedtick += 1
 	endif
 	if type(a:list) != v:t_list
@@ -1481,29 +1459,30 @@ fun! s:resetyanked(list=0)  " {{{
 		call filter(s:yanked, 0)
 		echo 'Yanked list reset'
 		let s:yankedtick += 1
+		call s:printtree(1)
+		return
 	elseif empty(l:list)
 		echo 'Nothing to remove from yanked'
 		return
-	else
-		let l:oldlen = len(s:yanked)
-		for l:path in l:list
-			let l:i = index(s:yanked, l:path)
-			if l:i == -1
-				echo '"'.l:path.'" is not yanked'
-			else
-				call remove(s:yanked, l:i)
-			endif
-		endfor
-		if len(s:yanked) != l:oldlen
-			echo 'Yanked list shrunk by '.(l:oldlen - len(s:yanked)).' (from '.l:oldlen.' to '.len(s:yanked).')'
-			let s:yankedtick += 1
-			if type(a:list) != v:t_list
-				call filter(b:fm_marked, 0)
-				let b:fm_markedtick += 1
-			endif
-		elseif type(a:list) == v:t_list
-			return
+	endif
+	let l:oldlen = len(s:yanked)
+	for l:path in l:list
+		let l:i = index(s:yanked, l:path)
+		if l:i == -1
+			echo '"'.l:path.'" is not yanked'
+		else
+			call remove(s:yanked, l:i)
 		endif
+	endfor
+	if len(s:yanked) == l:oldlen
+		return
+	endif
+	echo 'Yanked list shrunk by '.(l:oldlen - len(s:yanked))
+	     \.' (from '.l:oldlen.' to '.len(s:yanked).')'
+	let s:yankedtick += 1
+	if type(a:list) != v:t_list
+		call filter(b:fm_marked, 0)
+		let b:fm_markedtick += 1
 	endif
 	call s:printtree(1)
 endfun  " }}}
@@ -1518,7 +1497,6 @@ fun! s:pastemarked(leave, doyanked)  " {{{
 	call sort(l:list, s:sortfunc)
 	let l:destdir = fnamemodify(s:undercursor(1, line('.') > 3 ? line('.') : 3), ':h')
 	let l:destdir = substitute(l:destdir, '/$', '', '').'/'
-	let l:success = 0
 
 	let l:existing = map(copy(l:list), 'fnamemodify(v:val, ":t")')
 	call filter(l:existing, '!empty(glob(escape(fnameescape(l:destdir.v:val), "~"), 1, 1, 1))')
@@ -1531,46 +1509,20 @@ fun! s:pastemarked(leave, doyanked)  " {{{
 		endif
 	endif
 
-	" Always faster than two filters
-	let l:files = []
-	let l:dirs = []
-	for l:path in l:list
-		call add(getftype(l:path) == 'dir' ? l:dirs : l:files, l:path)
-	endfor
-
-	if !empty(l:files)
-		echo 'Files to paste:'
-		echo ' '.join(l:files, "\n ")
-		if confirm("Paste printed files?", "&No\n&Yes") < 2
-			echo 'Files not pasted'
-		else
-			silent let l:output = system('cp '.join(map(add(l:files, l:destdir), 'shellescape(v:val, 0)'), ' '))
-			if v:shell_error
-				echohl ErrorMsg
-				echomsg 'Failed to paste files: '.l:output
-				echohl None
-			endif
-			let l:success = l:success || !v:shell_error
-		endif
+	echo 'Items to paste:'
+	echo ' '.join(l:list, "\n ")
+	if confirm("Paste?", "&No\n&Yes") < 2
+		echo 'Operation canceled'
+		return
 	endif
-
-	if !empty(l:dirs)
-		echo 'Directories to paste:'
-		echo ' '.join(l:dirs, "\n ")
-		if confirm("Paste printed directories?", "&No\n&Yes") < 2
-			echo 'Directories not pasted'
-		else
-			silent let l:output = system('cp -r '.join(map(add(l:dirs, l:destdir), 'shellescape(v:val, 0)'), ' '))
-			if v:shell_error
-				echohl ErrorMsg
-				echomsg 'Failed to paste directories: '.l:output
-				echohl None
-			endif
-			let l:success = l:success || !v:shell_error
-		endif
+	silent let l:output = system('cp -r '.join(map(add(copy(l:list), l:destdir),
+	                                               \'shellescape(v:val, 0)'), ' '))
+	if v:shell_error
+		echohl ErrorMsg
+		echomsg 'Failed to paste: '.l:output
+		echohl None
 	endif
-
-	if !a:leave && l:success
+	if !a:leave && !v:shell_error
 		call filter(l:list, 0)
 		let s:yankedtick += a:doyanked
 		let b:fm_markedtick += !a:doyanked
@@ -1584,8 +1536,8 @@ fun! s:deletemarked(doyanked, list=0)  " {{{
 		echo 'Nothing currently yanked'
 		return
 	endif
-	let l:list = a:doyanked ? s:yanked : b:fm_marked
-	let l:list = type(a:list) == v:t_list ? a:list : l:list
+	let l:list = type(a:list) == v:t_list ? a:list :
+	             \(a:doyanked ? s:yanked : b:fm_marked)
 	if empty(l:list) && type(a:list) != v:t_list
 		if line('.') < 3
 			echo 'Not attempting to delete current or parent directory'
@@ -1611,15 +1563,7 @@ fun! s:deletemarked(doyanked, list=0)  " {{{
 		if confirm("Delete printed files?", "&No\n&Yes") < 2
 			echo 'Files not deleted'
 		else
-			for l:path in l:files
-				if delete(l:path)
-					echohl ErrorMsg
-					echomsg 'Failed to delete "'.l:path.'"'
-					echohl None
-				elseif !l:reset
-					let l:reset = 1
-				endif
-			endfor
+			let l:reset = s:deletelist(l:files, '')
 		endif
 	endif
 
@@ -1630,17 +1574,7 @@ fun! s:deletemarked(doyanked, list=0)  " {{{
 		if l:choice < 2
 			echo 'Directories not deleted'
 		else
-			let l:choice = l:choice == 2 ? 'd' : 'rf'
-			" Sort without s:sortfunc here: child dirs first
-			for l:path in reverse(sort(l:dirs))
-				if delete(l:path, l:choice)
-					echohl ErrorMsg
-					echomsg 'Failed to delete "'.l:path.'"'
-					echohl None
-				elseif !l:reset
-					let l:reset = 1
-				endif
-			endfor
+			let l:reset = s:deletelist(l:dirs, l:choice == 2 ? 'd' : 'rf') || l:reset
 		endif
 	endif
 
@@ -1654,33 +1588,25 @@ fun! s:deletemarked(doyanked, list=0)  " {{{
 endfun  " }}}
 
 
+fun! s:deletelist(list, flag)  " {{{
+	let l:reset = 0
+	" For directories: sort without s:sortfunc here: children first
+	for l:path in empty(a:flag) ? a:list : reverse(sort(a:list))
+		if delete(l:path, a:flag)
+			echohl ErrorMsg
+			echomsg 'Failed to delete "'.l:path.'"'
+			echohl None
+		elseif !l:reset
+			let l:reset = 1
+		endif
+	endfor
+	return l:reset
+endfun  " }}}
+
+
 fun! s:renamemarked()  " {{{
 	if len(b:fm_marked) > 1
-		let l:marked = []
-		for l:path in sort(b:fm_marked)
-			if l:path[:len(b:fm_treeroot)-1] ==# b:fm_treeroot
-				call add(l:marked, l:path[len(b:fm_treeroot):])
-			else
-				echo 'Ignoring "'.l:path.'"'
-			endif
-		endfor
-		let l:markedtree = {}
-		for l:path in l:marked
-			let l:dic = l:markedtree
-			for l:dir in split(l:path, '/')[:-2]
-				if type(get(l:dic, l:dir, 0)) != v:t_dict
-					let l:dic[l:dir] = {'': 0}
-				endif
-				let l:dic = l:dic[l:dir]
-			endfor
-			call extend(l:dic, {fnamemodify(l:path, ':t'): 0}, 'keep')
-		endfor
-		if empty(l:markedtree)
-			echo 'Nothing marked in current tree'
-			return
-		endif
-		call s:renametree(l:markedtree)
-		return
+		return s:renametreeprepare()
 	endif
 
 	let l:name = empty(b:fm_marked) ? s:undercursor(0) : b:fm_marked[0]
@@ -1696,15 +1622,37 @@ fun! s:renamemarked()  " {{{
 	redraw
 	if l:destination == ''
 		echo 'Empty name supplied. Aborted'
-	else
-		let l:destination = s:simplify(substitute(fnamemodify(l:name, ':h'), '/$', '', '').'/'.l:destination)
-		let l:err = s:renamebylist([l:name], [l:destination])
-		" Probably renaming the file under the cursor
-		silent call s:refreshtree(0)
-		if !l:err && l:destination[:len(b:fm_treeroot)-1] ==# b:fm_treeroot
-			silent call s:movecursorbypath(l:destination)
-		endif
+		return
 	endif
+	let l:destination = s:simplify(substitute(fnamemodify(l:name, ':h'), '/$', '', '').'/'.l:destination)
+	let l:err = s:renamebylist([l:name], [l:destination])
+	" Probably renaming the file under the cursor
+	silent call s:refreshtree(0)
+	if !l:err && l:destination[:len(b:fm_treeroot)-1] ==# b:fm_treeroot
+		silent call s:movecursorbypath(l:destination)
+	endif
+endfun  " }}}
+
+
+fun! s:renametreeprepare()  " {{{
+	let l:marked = filter(copy(b:fm_marked), 'v:val[:len(b:fm_treeroot)-1] ==# b:fm_treeroot')
+	call map(l:marked, 'v:val[len(b:fm_treeroot):]')
+	if empty(l:marked)
+		echo 'Nothing marked in current tree'
+		return
+	endif
+	let l:markedtree = {}
+	for l:path in l:marked
+		let l:dic = l:markedtree
+		for l:dir in split(l:path, '/')[:-2]
+			if type(get(l:dic, l:dir, 0)) != v:t_dict
+				let l:dic[l:dir] = {'': 0}
+			endif
+			let l:dic = l:dic[l:dir]
+		endfor
+		call extend(l:dic, {fnamemodify(l:path, ':t'): 0}, 'keep')
+	endfor
+	call s:renametree(l:markedtree)
 endfun  " }}}
 
 
@@ -1808,9 +1756,7 @@ fun! s:renamebylist(listfrom, listto)  " {{{
 		if isdirectory(a:listto[l:i])
 			" \= is simpler than doing all the escape() and hope
 			let l:subwith = a:listto[l:i].'/'
-			for l:j in range(l:i+1, len(a:listfrom)-1)
-				let a:listfrom[l:j] = substitute(a:listfrom[l:j], '^\V'.escape(a:listfrom[l:i], '\').'/', '\=l:subwith', '')
-			endfor
+			call map(a:listfrom, 'v:key <= l:i ? v:val : substitute(v:val, "^\\V".escape(a:listfrom[l:i], "\\")."/", "\\=l:subwith", "")')
 			call s:movetreecontents(a:listfrom[l:i], a:listto[l:i])
 		endif
 	endfor
@@ -1863,17 +1809,15 @@ fun! s:processcmdline()  " {{{
 		" Should refresh tree only after resetting everything
 		au! filemanager ShellCmdPost <buffer>
 	endif
-	" Attempt to not clutter memory with copy()
 	if getcmdline() =~# '[^\\]\$yanked'
 		if s:resetmarkedonsuccess
 			au filemanager ShellCmdPost <buffer> ++once
 			\ if !v:shell_error | call filter(s:yanked, 0) | let s:yankedtick += 1 | endif
 		endif
-		if s:yankedshtick < s:yankedtick
-			let s:yankedsh = empty(s:yanked) ? ' ' :
-			    \ ' '.join(map(copy(s:yanked), 'shellescape(v:val, 1)'), ' ').' '
-			let s:yankedshtick = s:yankedtick
-		endif
+		let l:yankedsh = empty(s:yanked) ? '' :
+		    \ join(map(copy(s:yanked), 'shellescape(v:val, 1)'), ' ')
+	else
+		let l:yankedsh = ''
 	endif
 
 	if getcmdline() =~# '[^\\]\$marked'
@@ -1881,15 +1825,14 @@ fun! s:processcmdline()  " {{{
 			au filemanager ShellCmdPost <buffer> ++once
 			\ if !v:shell_error | call filter(b:fm_marked, 0) | let b:fm_markedtick += 1 | endif
 		endif
-		if b:fm_markedshtick < b:fm_markedtick
-			let b:fm_markedsh = empty(b:fm_marked) ? ' ' :
-			    \ ' '.join(map(copy(b:fm_marked), 'shellescape(v:val, 1)'), ' ').' '
-			let b:fm_markedshtick = b:fm_markedtick
-		endif
+		let l:markedsh = empty(b:fm_marked) ? '' :
+		    \ join(map(copy(b:fm_marked), 'shellescape(v:val, 1)'), ' ')
+	else
+		let l:markedsh = ''
 	endif
 
 	if getcmdline() =~# '[^\\]\$cfile'
-		let l:cfile = ' '.shellescape(s:undercursor(0), 1).' '
+		let l:cfile = shellescape(s:undercursor(0), 1)
 	else
 		let l:cfile = ''
 	endif
@@ -1898,21 +1841,21 @@ fun! s:processcmdline()  " {{{
 		au filemanager ShellCmdPost  <buffer>  call s:refreshtree(-1)
 	endif
 
-	let l:split = split(getcmdline(), '[^\\]\zs\$yanked', 1)
+	let l:split = split(getcmdline(), '\([^\\]\|^\)\zs\$yanked', 1)
 	call map(l:split, 'substitute(v:val, ''\\\$yanked'', "$yanked", "g")')
 	" Cannot join here since yanked filenames may include '$marked'
-	call map(l:split, 'split(v:val, ''[^\\]\zs\$marked'', 1)')
+	call map(l:split, 'split(v:val, ''\([^\\]\|^\)\zs\$marked'', 1)')
 	" Avoid potential problems of nested v:val usage in map(map())
 	for l:list in l:split
 		call map(l:list, 'substitute(v:val, ''\\\$marked'', "$marked", "g")')
-		call map(l:list, 'split(v:val, ''[^\\]\zs\$cfile'', 1)')
+		call map(l:list, 'split(v:val, ''\([^\\]\|^\)\zs\$cfile'', 1)')
 		for l:sublist in l:list
 			call map(l:sublist, 'substitute(v:val, ''\\\$cfile'', "$cfile", "g")')
 		endfor
 		call map(l:list, 'join(v:val, l:cfile)')
 	endfor
-	call map(l:split, 'join(v:val, b:fm_markedsh)')
-	return join(l:split, s:yankedsh)
+	call map(l:split, 'join(v:val, l:markedsh)')
+	return join(l:split, l:yankedsh)
 endfun  " }}}
 
 
@@ -2108,8 +2051,6 @@ fun! s:initialize(path, aux)  " {{{
 	let b:fm_filters = []
 	let b:fm_marked = []
 	let b:fm_markedtick = 0
-	let b:fm_markedsh = ''
-	let b:fm_markedshtick = 0
 
 	let b:fm_treeroot = substitute(a:path, '/$', '', '').'/'
 	let b:fm_tree = s:getdircontents(b:fm_treeroot)
