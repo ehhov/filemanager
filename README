@@ -190,6 +190,8 @@ default values:
  g:filemanager_writeshortbookmarks = 1    Write short alphanumeric bookmarks to file
  g:filemanager_notifyoffilters = 1        Print a message whenever filters are applied
  g:filemanager_filterdirs = 1             Apply filters to directories
+ g:filemanager_settabdir = opposite of 'autochdir' (its value during startup)
+                                          Set tab-local current directory to tree root
  g:filemanager_resetmarkedonsuccess = 1   Reset marked and yanked lists on successful
                                           shell commands that use $marked and $yanked
  g:filemanager_showhidden = 1             Show hidden files (gh mapping)

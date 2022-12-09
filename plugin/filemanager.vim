@@ -31,6 +31,7 @@ let s:writebackupbookmarks = get(g:, 'filemanager_writebackupbookmarks', 0)
 let s:writeshortbookmarks  = get(g:, 'filemanager_writeshortbookmarks',  1)
 let s:notifyoffilters      = get(g:, 'filemanager_notifyoffilters',      1)
 let s:filterdirs           = get(g:, 'filemanager_filterdirs',           1)
+let s:settabdir            = get(g:, 'filemanager_settabdir',  !&autochdir)
 let s:resetmarkedonsuccess = get(g:, 'filemanager_resetmarkedonsuccess', 1)
 let s:showhidden           = get(g:, 'filemanager_showhidden',           1)
 let s:respectgitignore     = get(g:, 'filemanager_respectgitignore',     1)
@@ -339,7 +340,7 @@ fun! s:printtree(restview, movetopath='', movetotwo=0)  " {{{
 		call s:printcontents(s:filtercontents(b:fm_tree, ''), b:fm_treeroot, 1, 3)
 	endif
 	setl nomodifiable readonly nomodified
-	if !b:fm_auxiliary
+	if s:settabdir && !b:fm_auxiliary
 		if s:dirreadable(b:fm_treeroot)
 			exe 'tcd '.fnameescape(b:fm_treeroot)
 		else
@@ -1240,8 +1241,8 @@ fun! s:openterminal(cdundercursor)  " {{{
 	" :terminal randomly ignores local CWD and uses the tab-local one.
 	" :tcd - seems to rely on something other than tab-local CWDs.
 	" Try :tcd /tmp | new /usr/share/1 | tcd /var | tcd - | pwd
-	let l:cdcmd = s:dirreadable(l:path) ? 'tcd '.fnameescape(l:path) : ''
-	let l:cdback = s:dirreadable(l:path) ? 'tcd '.fnameescape(getcwd(-1, 0)) : ''
+	let l:cdcmd = s:dirreadable(l:path) ? (s:settabdir ? 'tcd ' : 'lcd ').fnameescape(l:path) : ''
+	let l:cdback = s:dirreadable(l:path) && s:settabdir ? 'tcd '.fnameescape(getcwd(-1, 0)) : ''
 
 	if b:fm_auxiliary
 		exe l:cdcmd
@@ -1796,6 +1797,8 @@ endfun  " }}}
 fun! s:cmdlineenter(char)  " {{{
 	if &autochdir && a:char == ':' && s:dirreadable(b:fm_treeroot)
 		exe 'lcd '.fnameescape(b:fm_treeroot)
+	elseif a:char == ':' && haslocaldir(0) == 1
+		exe (haslocaldir(-1, 0) ? 'tcd ' : 'cd ' ).fnameescape(getcwd(-1, 0))
 	endif
 endfun  " }}}
 
@@ -2140,7 +2143,7 @@ fun! s:spawn_resizewin()  " {{{
 	let &winfixheight = !b:fm_vertical
 	if b:fm_auxiliary
 		let b:fm_auxiliary = 0
-		if s:dirreadable(b:fm_treeroot)
+		if s:settabdir && s:dirreadable(b:fm_treeroot)
 			exe 'tcd '.fnameescape(b:fm_treeroot)
 		endif
 		call s:setbufname()
