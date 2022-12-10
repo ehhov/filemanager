@@ -1172,7 +1172,7 @@ fun! s:open(path, mode)  " {{{
 		return
 	endif
 
-	if b:fm_auxiliary
+	if b:fm_auxiliary && a:mode != 4  " allow opening in a new tab
 		exe 'edit '.fnameescape(a:path)
 		return
 	endif
