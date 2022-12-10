@@ -759,8 +759,9 @@ fun! s:filtercmd(pattern, bang)  " {{{
 		call add(b:fm_filters, (a:bang ? '!' : ' ') . a:pattern . (a:pattern[-1:-1] == '$' ? '' : '[^/]*$'))
 	endif
 
+	let l:path = s:undercursor(1)
 	call s:printtree(0)
-	call cursor(2, 1)
+	silent eval s:movecursorbypath(l:path) && cursor(2, 1)
 	if empty(b:fm_filters)
 		echo 'All filters removed'
 	endif
