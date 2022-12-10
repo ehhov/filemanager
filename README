@@ -150,6 +150,8 @@ Further functionality is best presented by mappings and commands themselves:
                         p/P reset the corresponding list on success while zp/zP do not
   r                     rename item under the cursor or marked items
   R                     rename files in the tree as you see it, interactively
+  <c-n>                 move cursor to the next marked item
+  <c-p>                 move cursor to the previous marked item
   b<Enter>              print saved bookmarks
   b{name}               go to bookmark {name}
   B{name}               save current state to bookmark {name}

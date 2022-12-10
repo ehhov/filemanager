@@ -1489,6 +1489,12 @@ fun! s:resetyanked(list=0)  " {{{
 endfun  " }}}
 
 
+fun! s:gotomarked(backwards)  " {{{
+	" Separate function because <sid> doesn't work for variables
+	call search('^'.s:depthstrmarkedpat, a:backwards ? 'bs' : 's')
+endfun  " }}}
+
+
 fun! s:pastemarked(leave, doyanked)  " {{{
 	let l:list = a:doyanked ? s:yanked : b:fm_marked
 	if empty(l:list)
@@ -1968,6 +1974,8 @@ fun! s:definemapcmd()  " {{{
 	nnoremap <nowait> <buffer>  zp       <cmd>call <sid>pastemarked(1, 0)<cr>
 	nnoremap <nowait> <buffer>  zP       <cmd>call <sid>pastemarked(1, 1)<cr>
 	nnoremap <nowait> <buffer>  zD       <cmd>call <sid>deletemarked(1)<cr>
+	nnoremap <nowait> <buffer>  <c-n>    <cmd>call <sid>gotomarked(0)<cr>
+	nnoremap <nowait> <buffer>  <c-p>    <cmd>call <sid>gotomarked(1)<cr>
 	nnoremap <nowait> <buffer>  b        <nop>
 	nnoremap <nowait> <buffer>  B        <nop>
 	nnoremap <nowait> <buffer>  b<cr>    <cmd>call <sid>printbookmarks()<cr>
