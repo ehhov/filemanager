@@ -1632,7 +1632,10 @@ fun! s:renamemarked()  " {{{
 		echo 'Empty name supplied. Aborted'
 		return
 	endif
-	let l:destination = s:simplify(substitute(fnamemodify(l:name, ':h'), '/$', '', '').'/'.l:destination)
+	let l:substring = matchstr(l:destination, '^\s*\~[^/]*/')
+	let l:destination = substitute(l:destination, '^\s*\~[^/]*/', expandcmd(l:substring), '')
+	let l:destination = s:simplify(l:destination[0] == '/' ? l:destination
+	                               \: substitute(fnamemodify(l:name, ':h'), '/$', '', '').'/'.l:destination)
 	let l:err = s:renamebylist([l:name], [l:destination])
 	" Probably renaming the file under the cursor
 	silent call s:refreshtree(0)
