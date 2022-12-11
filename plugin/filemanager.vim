@@ -1846,6 +1846,12 @@ fun! s:processcmdline()  " {{{
 		au filemanager ShellCmdPost  <buffer>  call s:refreshtree(-1)
 	endif
 
+	" Save current un-expanded cmdline to history and delete the expanded
+	" version after hitting enter. CmdlineLeave is triggered before
+	" leaving, so delete on ShellCmdPost as a workaround.
+	call histadd(':', getcmdline())
+	au filemanager ShellCmdPost  <buffer>  ++once call histdel(':', -1)
+
 	let l:split = split(getcmdline(), '<lt>', 1)
 	call map(l:split, 'split(v:val, "<marked>", 1)')
 	" Cannot join here since marked filenames may include <yanked>.
