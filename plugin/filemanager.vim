@@ -1688,6 +1688,7 @@ fun! s:renametree(tree=0)  " {{{
 	let b:fm_renamefrom = getline(3, '$')
 	call s:setbufname()
 
+	au! filemanager BufEnter,ShellCmdPost <buffer>
 	delcommand Mark
 	delcommand Yank
 	delcommand Filter
@@ -1697,7 +1698,6 @@ fun! s:renametree(tree=0)  " {{{
 	nnoremap <buffer>  <cr>   <cmd>call <sid>renamefinish(1)<cr>
 	inoremap <buffer>  <cr>   <esc><cmd>call <sid>renamefinish(1)<cr>
 	nnoremap <buffer>  <esc>  <cmd>call <sid>renamefinish(0)<cr>
-	au filemanager BufLeave <buffer> ++once call s:renamefinish(-1)
 	setl undolevels=-123456  " based on :help 'undolevels'
 endfun  " }}}
 
@@ -1720,11 +1720,9 @@ fun! s:renamefinish(do)  " {{{
 		call s:renamebylist(l:renamefrom, l:renameto)
 	endif
 
-	au! filemanager BufLeave <buffer>
 	unlet b:fm_renamefrom
-	mapclear <buffer>
 	setl nomodifiable readonly undolevels=-1
-	call s:definemapcmd()
+	call s:definemapcmdautocmd()
 	call s:refreshtree(-1)
 endfun  " }}}
 
@@ -1908,8 +1906,8 @@ fun! s:checkconfig()  " {{{
 endfun  " }}}
 
 
-fun! s:definemapcmd()  " {{{
-	" Separete function because of s:renamemarked()
+fun! s:definemapcmdautocmd()  " {{{
+	" Separete function because of s:renametree()
 	command! -buffer -bang -nargs=?  Mark         call s:markbypat(<q-args>, <bang>0, 0)
 	command! -buffer -bang -nargs=?  Yank         call s:markbypat(<q-args>, <bang>0, 1)
 	command! -buffer -bang -nargs=?  Filter       call s:filtercmd(<q-args>, <bang>0)
@@ -1919,6 +1917,7 @@ fun! s:definemapcmd()  " {{{
 	                               \ Delbookmark  call s:bookmarkdel(<bang>0, <q-args>)
 
 	" No need for <silent> with <cmd>
+	mapclear <buffer>
 	nnoremap <nowait> <buffer>  ,        zh
 	nnoremap <nowait> <buffer>  .        zl
 	nnoremap <nowait> <buffer>  <        zH
@@ -1993,6 +1992,14 @@ fun! s:definemapcmd()  " {{{
 	if s:enablemouse
 		nmap <nowait> <buffer>  <2-LeftMouse>   <cr>
 	endif
+
+	" BufReadCmd needed for when the user runs :edit to reload the buffer
+	au! filemanager * <buffer>
+	au filemanager BufReadCmd    <buffer>  call s:initialize(b:fm_treeroot, b:fm_auxiliary)
+	au filemanager BufEnter      <buffer>  call s:refreshtree(0)
+	au filemanager BufUnload     <buffer>  call s:exit(str2nr(expand('<abuf>')))
+	au filemanager CmdlineEnter  <buffer>  call s:cmdlineenter(expand('<afile>'))
+	au filemanager ShellCmdPost  <buffer>  call s:refreshtree(-1)
 endfun  " }}}
 
 
@@ -2003,9 +2010,9 @@ fun! s:initialize(path, aux)  " {{{
 	setl nonumber nowrap nofoldenable
 	setl conceallevel=3 concealcursor=nc
 
-	" Mappings, commands, syntax, autocmds {{{
-	call s:definemapcmd()
+	call s:definemapcmdautocmd()
 
+	" Syntax {{{
 	syntax clear
 	syntax spell notoplevel
 	exe 'syntax match fm_regularfile  ".*'.s:seppat.'$"        contains=fm_depth,fm_marked,fm_yanked,fm_sepregfile'
@@ -2047,14 +2054,6 @@ fun! s:initialize(path, aux)  " {{{
 	highlight link fm_rename_info     Statement
 	highlight link fm_rename_button   PreProc
 	highlight link fm_rename_nontext  NonText
-
-	" BufReadCmd needed for when the user runs :edit to reload the buffer
-	au! filemanager * <buffer>
-	au filemanager BufReadCmd    <buffer>  call s:initialize(b:fm_treeroot, b:fm_auxiliary)
-	au filemanager BufEnter      <buffer>  call s:refreshtree(0)
-	au filemanager BufUnload     <buffer>  call s:exit(str2nr(expand('<abuf>')))
-	au filemanager CmdlineEnter  <buffer>  call s:cmdlineenter(expand('<afile>'))
-	au filemanager ShellCmdPost  <buffer>  call s:refreshtree(-1)
 	" }}}
 
 	for l:var in s:tabvars
@@ -2063,6 +2062,10 @@ fun! s:initialize(path, aux)  " {{{
 	let b:fm_filters = []
 	let b:fm_marked = []
 	let b:fm_markedtick = 0
+
+	if exists('b:fm_renamefrom')
+		unlet b:fm_renamefrom
+	endif
 
 	let b:fm_treeroot = substitute(a:path, '/$', '', '').'/'
 	let b:fm_tree = s:getdircontents(b:fm_treeroot)
