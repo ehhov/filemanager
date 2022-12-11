@@ -143,10 +143,10 @@ Further functionality is best presented by mappings and commands themselves:
                         visual mode: yank selected items into the shared list
   Y                     remove marked items from the shared list
                         visual mode: remove selected items from the shared list
-  D                     delete marked items or selected items in visual mode
-  zD                    delete yanked items
-  p  or  zp             copy marked items into the directory under the cursor
-  P  or  zP             copy yanked items into the directory under the cursor
+  D   or  delete        delete marked items or selected items in visual mode
+  zD  or  <s-delete>    delete yanked items
+  p   or  zp            copy marked items into the directory under the cursor
+  P   or  zP            copy yanked items into the directory under the cursor
                         p/P reset the corresponding list on success while zp/zP do not
   r                     rename item under the cursor or marked items
   R                     rename files in the tree as you see it, interactively

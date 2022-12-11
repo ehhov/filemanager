@@ -1970,6 +1970,7 @@ fun! s:definemapcmdautocmd()  " {{{
 	nnoremap <nowait> <buffer>  r        <cmd>call <sid>renamemarked()<cr>
 	nnoremap <nowait> <buffer>  R        <cmd>call <sid>renametree()<cr>
 	nnoremap <nowait> <buffer>  D        <cmd>call <sid>deletemarked(0)<cr>
+	nnoremap <nowait> <buffer>  <del>    <cmd>call <sid>deletemarked(0)<cr>
 	nnoremap <nowait> <buffer>  y        <cmd>call <sid>yankmarked()<cr>
 	nnoremap <nowait> <buffer>  Y        <cmd>call <sid>resetyanked()<cr>
 	nnoremap <nowait> <buffer>  p        <cmd>call <sid>pastemarked(0, 0)<cr>
@@ -1977,16 +1978,18 @@ fun! s:definemapcmdautocmd()  " {{{
 	nnoremap <nowait> <buffer>  zp       <cmd>call <sid>pastemarked(1, 0)<cr>
 	nnoremap <nowait> <buffer>  zP       <cmd>call <sid>pastemarked(1, 1)<cr>
 	nnoremap <nowait> <buffer>  zD       <cmd>call <sid>deletemarked(1)<cr>
+	nnoremap <nowait> <buffer>  <s-del>  <cmd>call <sid>deletemarked(1)<cr>
 	nnoremap <nowait> <buffer>  <c-n>    <cmd>call <sid>gotomarked(0)<cr>
 	nnoremap <nowait> <buffer>  <c-p>    <cmd>call <sid>gotomarked(1)<cr>
 	nnoremap <nowait> <buffer>  b        <nop>
 	nnoremap <nowait> <buffer>  B        <nop>
 	nnoremap <nowait> <buffer>  b<cr>    <cmd>call <sid>printbookmarks()<cr>
 	cnoremap <nowait> <buffer>  <cr>     <c-\>e<sid>processcmdline()<cr><cr>
-	xnoremap <nowait> <buffer> <expr>  i  '<esc><cmd>call <sid>mark(['.line('.').', '.line('v').'])<cr>'
-	xnoremap <nowait> <buffer> <expr>  y  '<esc><cmd>call <sid>visualcmd("y", ['.line('.').', '.line('v').'])<cr>'
-	xnoremap <nowait> <buffer> <expr>  Y  '<esc><cmd>call <sid>visualcmd("Y", ['.line('.').', '.line('v').'])<cr>'
-	xnoremap <nowait> <buffer> <expr>  D  '<esc><cmd>call <sid>visualcmd("D", ['.line('.').', '.line('v').'])<cr>'
+	xnoremap <nowait> <buffer> <expr>  i    '<esc><cmd>call <sid>mark(['.line('.').', '.line('v').'])<cr>'
+	xnoremap <nowait> <buffer> <expr>  y    '<esc><cmd>call <sid>visualcmd("y", ['.line('.').', '.line('v').'])<cr>'
+	xnoremap <nowait> <buffer> <expr>  Y    '<esc><cmd>call <sid>visualcmd("Y", ['.line('.').', '.line('v').'])<cr>'
+	xnoremap <nowait> <buffer> <expr>  D    '<esc><cmd>call <sid>visualcmd("D", ['.line('.').', '.line('v').'])<cr>'
+	xnoremap <nowait> <buffer> <expr> <del> '<esc><cmd>call <sid>visualcmd("D", ['.line('.').', '.line('v').'])<cr>'
 	for l:name in s:bookmarknames
 		exe 'nnoremap <nowait> <buffer>  B'.l:name.'  <cmd>call <sid>bookmarksave('.string(l:name).', 0)<cr>'
 		exe 'nnoremap <nowait> <buffer>  b'.l:name.'  <cmd>call <sid>bookmarkrestore('.string(l:name).')<cr>'
