@@ -507,8 +507,7 @@ endfun  " }}}
 
 fun! s:foldcontentsbydepth(tree, depth, limit)  " {{{
 	if a:depth > a:limit
-		call filter(a:tree, 0)
-		return
+		return filter(a:tree, 0)
 	endif
 	for l:dic in filter(values(a:tree), 'type(v:val) == v:t_dict && !empty(v:val)')
 		call s:foldcontentsbydepth(l:dic, a:depth+1, a:limit)
@@ -1158,11 +1157,9 @@ endfun  " }}}
 fun! s:open(path, mode)  " {{{
 	if isdirectory(a:path)
 		if a:mode == 0
-			call s:toggledir(a:path, 0)
-			return
+			return s:toggledir(a:path, 0)
 		elseif a:mode == -1
-			call s:descenddir(a:path, 0)
-			return
+			return s:descenddir(a:path, 0)
 		elseif a:mode != 4  " allow opening in a new tab
 			echo '"'.a:path.'" is a directory'
 			return
@@ -1182,8 +1179,7 @@ fun! s:open(path, mode)  " {{{
 
 	if a:mode == 0 || a:mode == -1  " <enter> or by name
 		if winnr('#') == 0 || winnr('#') == winnr()
-			call s:open(a:path, b:fm_vertical ? 1 : 2)
-			return
+			return s:open(a:path, b:fm_vertical ? 1 : 2)
 		endif
 		silent wincmd p
 		exe 'confirm edit '.fnameescape(a:path)
@@ -1461,8 +1457,7 @@ fun! s:resetyanked(list=0)  " {{{
 		call filter(s:yanked, 0)
 		echo 'Yanked list reset'
 		let s:yankedtick += 1
-		call s:printtree(1)
-		return
+		return s:printtree(1)
 	elseif empty(l:list)
 		echo 'Nothing to remove from yanked'
 		return
@@ -1709,14 +1704,12 @@ fun! s:renamefinish(do)  " {{{
 	if a:do > 0
 		if line('$') - 2 != len(b:fm_renamefrom)
 			echo 'Number of lines changed. Aborted'
-			call s:renamefinish(0)
-			return
+			return s:renamefinish(0)
 		endif
 		let l:changed = filter(range(3, line('$')), 'b:fm_renamefrom[v:val-3] !=# getline(v:val)')
 		if empty(l:changed)
 			echo 'Nothing to rename'
-			call s:renamefinish(0)
-			return
+			return s:renamefinish(0)
 		endif
 		let l:renameto = map(copy(l:changed), 's:undercursor(1, v:val)')
 		let l:renamefrom = map(copy(l:changed), 's:undercursor(1, v:val - 3, b:fm_renamefrom)')
