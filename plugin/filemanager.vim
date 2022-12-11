@@ -1,4 +1,4 @@
-" filemanager - file explorer and manager plugin for Vim and Neovim intended 
+" filemanager - file explorer and manager plugin for Vim and Neovim intended
 " to be as straightforward as possible and never do anything unexpected.
 "
 " Author: Kerim Guseynov
@@ -1254,10 +1254,10 @@ fun! s:openterminal(cdundercursor)  " {{{
 	endif
 
 	" There is no way to know what the user has chosen in :confirm.
-	" Strangely, :only proceeds even when canceled under :confirm. 
-	" Although it is 'good' here and allows filemanager to know whether 
-	" the user has canceled the operation, the second :only is meant to do 
-	" this very job (just in case Vim ever decides to change this strange 
+	" Strangely, :only proceeds even when canceled under :confirm.
+	" Although it is 'good' here and allows filemanager to know whether
+	" the user has canceled the operation, the second :only is meant to do
+	" this very job (just in case Vim ever decides to change this strange
 	" behavior of :only).
 	try
 		confirm only
@@ -2135,7 +2135,7 @@ fun! s:exit(bufnr)  " {{{
 	if getbufvar(a:bufnr, 'fm_auxiliary')
 		return
 	endif
-	" Attempt to save config for all relevant tabs, but actually BufUnload 
+	" Attempt to save config for all relevant tabs, but actually BufUnload
 	" is triggered only when the last window (hence in last tab) is closed.
 	for l:tabnr in filter(range(1, tabpagenr('$')), 'index(tabpagebuflist(v:val), a:bufnr) != -1')
 		for l:var in s:tabvars
