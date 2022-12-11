@@ -42,6 +42,7 @@ let s:newestfirst          = get(g:, 'filemanager_newestfirst',          1)
 let s:sortfunc             = get(g:, 'filemanager_sortfunc',            '')
 let s:sortrules            = get(g:, 'filemanager_sortrules',           {})
 let s:sortorder = get(g:, 'filemanager_sortorder', '*/,*,.*/,.*,^__pycache__/$,\.bak$,\.swp$,\~$')
+" The following lines must be the same as in syntax/filemanager.vim
 let s:depthstr = '| '
 let s:depthstrmarked = '|+'
 let s:depthstryanked = '|-'
@@ -2007,52 +2008,9 @@ fun! s:initialize(path, aux)  " {{{
 	setl nomodifiable readonly undolevels=-1
 	setl nonumber nowrap nofoldenable
 	setl conceallevel=3 concealcursor=nc
+	setfiletype filemanager
 
 	call s:definemapcmdautocmd()
-
-	" Syntax {{{
-	syntax clear
-	syntax spell notoplevel
-	exe 'syntax match fm_regularfile  ".*'.s:seppat.'$"        contains=fm_depth,fm_marked,fm_yanked,fm_sepregfile'
-	exe 'syntax match fm_directory    ".*'.s:seppat.'/$"       contains=fm_depth,fm_marked,fm_yanked,fm_ftypeind'
-	exe 'syntax match fm_executable   ".*'.s:seppat.'\*$"      contains=fm_depth,fm_marked,fm_yanked,fm_ftypeind'
-	exe 'syntax match fm_symlink      ".*'.s:seppat.'@$"       contains=fm_depth,fm_marked,fm_yanked,fm_ftypeind'
-	exe 'syntax match fm_symlinkmis   ".*'.s:seppat.'!@$"      contains=fm_depth,fm_marked,fm_yanked,fm_ftypeind'
-	exe 'syntax match fm_socket       ".*'.s:seppat.'=$"       contains=fm_depth,fm_marked,fm_yanked,fm_ftypeind'
-	exe 'syntax match fm_fifo         ".*'.s:seppat.'|$"       contains=fm_depth,fm_marked,fm_yanked,fm_ftypeind'
-	exe 'syntax match fm_ftypeind     "'.s:seppat.s:filetypepat.'$"  contains=fm_sepftype contained'
-	exe 'syntax match fm_sepftype     "'.s:seppat.'\ze[\*@=|/]$"     conceal contained'
-	exe 'syntax match fm_sepftype     "'.s:seppat.'!\ze@$"           conceal contained'
-	exe 'syntax match fm_sepregfile   "'.s:seppat.'$"                conceal contained'
-	exe 'syntax match fm_depth        "^'.s:depthstronlypat.'\+'.s:seppat.'"    contains=fm_sepdepth contained'
-	exe 'syntax match fm_marked       "^'.s:depthstrmarkedpat.'\+'.s:seppat.'"  contains=fm_sepdepth contained'
-	exe 'syntax match fm_yanked       "^'.s:depthstryankedpat.'\+'.s:seppat.'"  contains=fm_sepdepth contained'
-	exe 'syntax match fm_sepdepth     "^'.s:depthstrpat.'\+\zs'.s:seppat.'"     conceal contained'
-
-	highlight link fm_regularfile     Normal
-	highlight link fm_directory       Directory
-	highlight link fm_executable      Question
-	highlight link fm_symlink         Identifier
-	highlight link fm_symlinkmis      WarningMsg
-	highlight link fm_socket          PreProc
-	highlight link fm_fifo            Statement
-	highlight link fm_ftypeind        NonText
-	highlight link fm_depth           NonText
-	highlight link fm_marked          Search
-	highlight link fm_yanked          Visual
-	highlight link fm_sepdepth        NonText
-	highlight link fm_sepftype        NonText
-	highlight link fm_sepregfile      NonText
-
-	syntax match fm_rename_info     '\%^Edit .*$'  contains=fm_rename_button,fm_rename_nontext
-	syntax match fm_rename_button   'Enter'        contained
-	syntax match fm_rename_button   'Esc'          contained
-	syntax match fm_rename_nontext  'NonText'      contained
-
-	highlight link fm_rename_info     Statement
-	highlight link fm_rename_button   PreProc
-	highlight link fm_rename_nontext  NonText
-	" }}}
 
 	for l:var in s:tabvars
 		exe 'let b:fm_'.l:var.' = get(t:, "filemanager_".l:var, s:'.l:var.')'
