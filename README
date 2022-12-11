@@ -160,10 +160,10 @@ Further functionality is best presented by mappings and commands themselves:
   Bookmark mappings are created for almost all the symbols on the keyboard:
   '"0123456789qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM[]{};:,.<>/?\!@#$%^&*()-_=+`~
 
-  Enter in command line mode is mapped to replace $marked and $yanked 
-  with lists of marked and yanked items in all :! shell commands. Use 
-  \$marked and \$yanked to type them literally.
-  Similarly, $cfile is replaced with the item under the cursor.
+  Enter in command line mode is mapped to replace <marked>, <yanked>, 
+  and <cfile> with lists of marked and yanked items and the item under 
+  the cursor, respectively, in all :! shell commands.
+  Use <lt>marked>, etc. to type them literally.
 
 
 What filemanager doesn't do and probably never will includes:

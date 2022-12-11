@@ -1812,7 +1812,7 @@ endfun  " }}}
 
 
 fun! s:processcmdline()  " {{{
-	if getcmdtype() != ':' || getcmdline() !~# '\$\(yanked\|marked\|cfile\)'
+	if getcmdtype() != ':' || getcmdline() !~# '<\(yanked\|marked\|cfile\|lt\)>'
 		return getcmdline()
 	endif
 
@@ -1820,7 +1820,7 @@ fun! s:processcmdline()  " {{{
 		" Should refresh tree only after resetting everything
 		au! filemanager ShellCmdPost <buffer>
 	endif
-	if getcmdline() =~# '[^\\]\$yanked'
+	if getcmdline() =~# '<yanked>'
 		if s:resetmarkedonsuccess
 			au filemanager ShellCmdPost <buffer> ++once
 			\ if !v:shell_error | call filter(s:yanked, 0) | let s:yankedtick += 1 | endif
@@ -1831,7 +1831,7 @@ fun! s:processcmdline()  " {{{
 		let l:yankedsh = ''
 	endif
 
-	if getcmdline() =~# '[^\\]\$marked'
+	if getcmdline() =~# '<marked>'
 		if s:resetmarkedonsuccess
 			au filemanager ShellCmdPost <buffer> ++once
 			\ if !v:shell_error | call filter(b:fm_marked, 0) | let b:fm_markedtick += 1 | endif
@@ -1842,7 +1842,7 @@ fun! s:processcmdline()  " {{{
 		let l:markedsh = ''
 	endif
 
-	if getcmdline() =~# '[^\\]\$cfile'
+	if getcmdline() =~# '<cfile>'
 		let l:cfile = shellescape(s:undercursor(0), 1)
 	else
 		let l:cfile = ''
@@ -1852,21 +1852,20 @@ fun! s:processcmdline()  " {{{
 		au filemanager ShellCmdPost  <buffer>  call s:refreshtree(-1)
 	endif
 
-	let l:split = split(getcmdline(), '\([^\\]\|^\)\zs\$yanked', 1)
-	call map(l:split, 'substitute(v:val, ''\\\$yanked'', "$yanked", "g")')
-	" Cannot join here since yanked filenames may include '$marked'
-	call map(l:split, 'split(v:val, ''\([^\\]\|^\)\zs\$marked'', 1)')
-	" Avoid potential problems of nested v:val usage in map(map())
-	for l:list in l:split
-		call map(l:list, 'substitute(v:val, ''\\\$marked'', "$marked", "g")')
-		call map(l:list, 'split(v:val, ''\([^\\]\|^\)\zs\$cfile'', 1)')
-		for l:sublist in l:list
-			call map(l:sublist, 'substitute(v:val, ''\\\$cfile'', "$cfile", "g")')
+	let l:split = split(getcmdline(), '<lt>', 1)
+	call map(l:split, 'split(v:val, "<marked>", 1)')
+	" Cannot join here since marked filenames may include <yanked>.
+	" Also avoid potential problems with nested v:val usage in map(map()).
+	for l:listI in l:split
+		call map(l:listI, 'split(v:val, "<yanked>", 1)')
+		for l:listII in l:listI
+			call map(l:listII, 'split(v:val, "<cfile>", 1)')
+			call map(l:listII, 'join(v:val, l:cfile)')
 		endfor
-		call map(l:list, 'join(v:val, l:cfile)')
+		call map(l:listI, 'join(v:val, l:yankedsh)')
 	endfor
 	call map(l:split, 'join(v:val, l:markedsh)')
-	return join(l:split, l:yankedsh)
+	return join(l:split, '<')
 endfun  " }}}
 
 
