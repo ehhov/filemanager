@@ -2147,10 +2147,10 @@ fun! s:exit(bufnr)  " {{{
 		for l:var in s:tabvars
 			call settabvar(l:tabnr, 'filemanager_'.l:var, getbufvar(a:bufnr, 'fm_'.l:var))
 		endfor
-		if s:bookmarkonbufexit
-			call s:bookmarkbackup(a:bufnr)
-		endif
 	endfor
+	if s:bookmarkonbufexit
+		call s:bookmarkbackup(a:bufnr)
+	endif
 	" The autocmds and variables are unset by vim (bufhidden=wipe)
 endfun  " }}}
 " }}}
