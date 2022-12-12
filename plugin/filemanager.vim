@@ -1360,7 +1360,7 @@ fun! s:markbypat(pattern, bang, yank)  " {{{
 	let l:matches = s:namematches(l:tree, '', a:pattern.(a:pattern[-1:-1] == '$' ? '' : '[^/]*$'))
 	if a:bang
 		call filter(map(l:matches, 'index(l:list, v:val)'), 'v:val != -1')
-		for l:i in reverse(sort(l:matches))
+		for l:i in reverse(sort(l:matches, 'n'))
 			call remove(l:list, l:i)
 		endfor
 	else
