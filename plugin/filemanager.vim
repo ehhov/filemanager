@@ -1335,20 +1335,6 @@ fun! s:namematches(tree, relpath, pattern)  " {{{
 endfun  " }}}
 
 
-fun! s:removematches(list, pattern)  " {{{
-	let l:i = -1
-	for l:path in a:list
-		let l:i += 1
-		if l:path[:len(b:fm_treeroot)-1] !=# b:fm_treeroot
-			echo 'Ignoring "'.l:path.'"'
-		elseif match(l:path[len(b:fm_treeroot):], b:fm_ignorecase.a:pattern) != -1
-			call remove(a:list, l:i)
-			let l:i -= 1
-		endif
-	endfor
-endfun  " }}}
-
-
 fun! s:markbypat(pattern, bang, yank)  " {{{
 	if s:checkregex(a:pattern)
 		return
@@ -1363,11 +1349,15 @@ fun! s:markbypat(pattern, bang, yank)  " {{{
 		return
 	endif
 	let l:oldlen = len(l:list)
-	let l:pattern = a:pattern . (a:pattern[-1:-1] == '$' ? '' : '[^/]*$')
+	let l:tree = empty(b:fm_filters) ? b:fm_tree : s:filtercontents(b:fm_tree, '')
+	let l:matches = s:namematches(l:tree, '', a:pattern.(a:pattern[-1:-1] == '$' ? '' : '[^/]*$'))
 	if a:bang
-		call s:removematches(l:list, l:pattern)
+		call filter(map(l:matches, 'index(l:list, v:val)'), 'v:val != -1')
+		for l:i in reverse(sort(l:matches))
+			call remove(l:list, l:i)
+		endfor
 	else
-		call uniq(sort(extend(l:list, s:namematches(b:fm_tree, '', l:pattern))))
+		call uniq(sort(extend(l:list, l:matches)))
 	endif
 	if l:oldlen != len(l:list)
 		let b:fm_markedtick += !a:yank
