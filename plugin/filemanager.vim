@@ -979,10 +979,17 @@ fun! s:bookmarksuggest(arglead, cmdline, curpos)  " {{{
 	let l:list = sort(filter(keys(s:bookmarks), 'index(s:bookmarknames, v:val) == -1'), s:sortfunc)
 	          \ + filter(copy(s:bookmarknames), 'has_key(s:bookmarks, v:val) && !s:bookmarks[v:val][0]')
 	          \ + filter(copy(s:bookmarknames), 'has_key(s:bookmarks, v:val) && s:bookmarks[v:val][0]')
-	if !empty(a:arglead)
-		call filter(l:list, 'v:val[:len(a:arglead)-1] == a:arglead')
-	endif
-	return l:list
+	          \ + ['load', 'write']
+	return empty(a:arglead) ? l:list : filter(l:list, 'v:val[:len(a:arglead)-1] == a:arglead')
+endfun  " }}}
+
+
+fun! s:bookmarkdelsuggest(arglead, cmdline, curpos)  " {{{
+	let l:list = sort(filter(keys(s:bookmarks), 'index(s:bookmarknames, v:val) == -1'), s:sortfunc)
+	          \ + filter(copy(s:bookmarknames), 'has_key(s:bookmarks, v:val) && !s:bookmarks[v:val][0]')
+	          \ + filter(copy(s:bookmarknames), 'has_key(s:bookmarks, v:val) && s:bookmarks[v:val][0]')
+	          \ + ['file']
+	return empty(a:arglead) ? l:list : filter(l:list, 'v:val[:len(a:arglead)-1] == a:arglead')
 endfun  " }}}
 
 
@@ -1905,7 +1912,7 @@ fun! s:definemapcmdautocmd()  " {{{
 	command! -buffer -bang -nargs=?  Filter       call s:filtercmd(<q-args>, <bang>0)
 	command! -buffer -bang -nargs=? -complete=customlist,s:bookmarksuggest
 	                               \ Bookmark     call s:bookmarkcmd(<bang>0, <q-args>)
-	command! -buffer -bang -nargs=? -complete=customlist,s:bookmarksuggest
+	command! -buffer -bang -nargs=? -complete=customlist,s:bookmarkdelsuggest
 	                               \ Delbookmark  call s:bookmarkdel(<bang>0, <q-args>)
 
 	" No need for <silent> with <cmd>
