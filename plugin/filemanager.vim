@@ -30,7 +30,7 @@ let s:usebookmarkfile      = get(g:, 'filemanager_usebookmarkfile',      1)
 let s:writebackupbookmarks = get(g:, 'filemanager_writebackupbookmarks', 0)
 let s:writeshortbookmarks  = get(g:, 'filemanager_writeshortbookmarks',  1)
 let s:notifyoffilters      = get(g:, 'filemanager_notifyoffilters',      1)
-let s:filterdirs           = get(g:, 'filemanager_filterdirs',           1)
+let s:skipfilterdirs       = get(g:, 'filemanager_skipfilterdirs',       0)
 let s:settabdir            = get(g:, 'filemanager_settabdir',  !&autochdir)
 let s:resetmarkedonsuccess = get(g:, 'filemanager_resetmarkedonsuccess', 1)
 let s:showhidden           = get(g:, 'filemanager_showhidden',           1)
@@ -69,8 +69,8 @@ aug END
 let s:filetypepat = '\%([\*@=|/]\|!@\|\)'
 
 let s:tabvars = ['sortorder', 'sortmethod', 'sortreverse', 'usesortrules',
-                \'ignorecase', 'filterdirs', 'respectgitignore', 'showhidden',
-                \'vertical', 'winsize']
+                \'ignorecase', 'skipfilterdirs', 'respectgitignore',
+                \'showhidden', 'vertical', 'winsize']
 let s:sortreverse = 0   " for uniformity in s:initialize() and s:exit()
 let s:usesortrules = 1  " for uniformity as well
 
@@ -81,7 +81,8 @@ let s:buflist = []
 let s:yanked = []
 let s:yankedtick = 0
 
-let s:bookmarks = {}
+" '' key for s:fixoldbookmarks()
+let s:bookmarks = {'': 0}
 let s:bookmarkvars = ['treeroot', 'filters', 'marked'] + s:tabvars
 let s:bookmarknames = "'".'"0123456789qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM[]{};:,.<>/?\!@#$%^&*()-_=+`~'
 let s:bookmarknames = map(range(len(s:bookmarknames)), 's:bookmarknames[v:val]')
@@ -286,18 +287,18 @@ fun! s:printcontents(dic, path, depth, linenr)  " {{{
 endfun  " }}}
 
 
-fun! s:filtercontents(dic, relpath)  " {{{
+fun! s:filtercontents(dic, relpath, depth)  " {{{
 	let l:filtered = {}
 	for [l:name, l:contents] in items(a:dic)
 		if type(l:contents) == v:t_dict && !empty(l:contents)
-			let l:contents = s:filtercontents(l:contents, a:relpath.l:name.'/')
+			let l:contents = s:filtercontents(l:contents, a:relpath.l:name.'/', a:depth+1)
 			" No need to check if name matches when contents do
 			if len(l:contents) > 1
 				let l:filtered[l:name] = l:contents
 				continue
 			endif
 		endif
-		if l:name == '' || (!b:fm_filterdirs && type(l:contents) == v:t_dict)
+		if l:name == '' || (type(l:contents) == v:t_dict && b:fm_skipfilterdirs > a:depth)
 			let l:filtered[l:name] = l:contents
 			continue
 		endif
@@ -338,7 +339,7 @@ fun! s:printtree(restview, movetopath='', movetotwo=0)  " {{{
 	if empty(b:fm_filters)
 		call s:printcontents(b:fm_tree, b:fm_treeroot, 1, 3)
 	else
-		call s:printcontents(s:filtercontents(b:fm_tree, ''), b:fm_treeroot, 1, 3)
+		call s:printcontents(s:filtercontents(b:fm_tree, '', 0), b:fm_treeroot, 1, 3)
 	endif
 	setl nomodifiable readonly nomodified
 	if s:settabdir && !b:fm_auxiliary
@@ -670,10 +671,11 @@ fun! s:setignorecase()  " {{{
 endfun  " }}}
 
 
-fun! s:togglefilterdirs()  " {{{
-	let b:fm_filterdirs = !b:fm_filterdirs
+fun! s:setskipfilterdirs()  " {{{
+	let b:fm_skipfilterdirs = b:fm_skipfilterdirs == 0 && v:count == 0 ? 1 : v:count
 	call s:printtree(1, s:undercursor(1), 1)
-	echo 'Filter directories '.(b:fm_filterdirs ? 'ON' : 'OFF')
+	echo !b:fm_skipfilterdirs ? 'Directories not immune to filters'
+	     \: 'Directories up to depth '.b:fm_skipfilterdirs.' immune to filters'
 endfun  " }}}
 
 
@@ -857,13 +859,13 @@ endfun  " }}}
 
 
 fun! s:printbookmarks()  " {{{
-	if empty(s:bookmarks)
+	if len(s:bookmarks) == 1
 		echo 'No bookmarks saved'
 		return
 	endif
 	echo 'Bookmarks:'
 	let l:i = index(s:bookmarkvars, 'treeroot') + 3
-	for l:name in sort(filter(keys(s:bookmarks), 'index(s:bookmarknames, v:val) == -1'), s:sortfunc)
+	for l:name in sort(filter(keys(s:bookmarks), 'v:val != "" && index(s:bookmarknames, v:val) == -1'), s:sortfunc)
 	          \ + filter(copy(s:bookmarknames), 'has_key(s:bookmarks, v:val) && !s:bookmarks[v:val][0]')
 	          \ + filter(copy(s:bookmarknames), 'has_key(s:bookmarks, v:val) && s:bookmarks[v:val][0]')
 		let l:prepend = (s:bookmarks[l:name][0] ? 'bak ' : '').l:name.': '
@@ -937,6 +939,12 @@ fun! s:fixoldbookmarks(bookmarks)  " {{{
 			call insert(l:bookmark, string(s:usesortrules), 9)
 		endif
 	endfor
+	if !has_key(a:bookmarks, '')
+		for l:bookmark in values(a:bookmarks)
+			let l:bookmark[11] = !l:bookmark[11]
+		endfor
+		let a:bookmarks[''] = 0
+	endif
 	return a:bookmarks
 endfun  " }}}
 
@@ -956,7 +964,7 @@ fun! s:delbookmarkfromfile(name)  " {{{
 	let l:bookmarkssave = s:bookmarks
 	let s:bookmarks = {}
 	call s:loadbookmarks()
-	if empty(s:bookmarks)
+	if len(s:bookmarks) == 1
 		let s:bookmarks = l:bookmarkssave
 		return 1
 	endif
@@ -976,7 +984,7 @@ endfun  " }}}
 
 
 fun! s:bookmarksuggest(arglead, cmdline, curpos)  " {{{
-	let l:list = sort(filter(keys(s:bookmarks), 'index(s:bookmarknames, v:val) == -1'), s:sortfunc)
+	let l:list = sort(filter(keys(s:bookmarks), 'v:val != "" && index(s:bookmarknames, v:val) == -1'), s:sortfunc)
 	          \ + filter(copy(s:bookmarknames), 'has_key(s:bookmarks, v:val) && !s:bookmarks[v:val][0]')
 	          \ + filter(copy(s:bookmarknames), 'has_key(s:bookmarks, v:val) && s:bookmarks[v:val][0]')
 	          \ + ['load', 'write']
@@ -985,7 +993,7 @@ endfun  " }}}
 
 
 fun! s:bookmarkdelsuggest(arglead, cmdline, curpos)  " {{{
-	let l:list = sort(filter(keys(s:bookmarks), 'index(s:bookmarknames, v:val) == -1'), s:sortfunc)
+	let l:list = sort(filter(keys(s:bookmarks), 'v:val != "" && index(s:bookmarknames, v:val) == -1'), s:sortfunc)
 	          \ + filter(copy(s:bookmarknames), 'has_key(s:bookmarks, v:val) && !s:bookmarks[v:val][0]')
 	          \ + filter(copy(s:bookmarknames), 'has_key(s:bookmarks, v:val) && s:bookmarks[v:val][0]')
 	          \ + ['file']
@@ -1033,10 +1041,10 @@ fun! s:bookmarkdel(bang, name)  " {{{
 			echo 'No bookmark "'.a:name.'" saved'
 		endif
 	elseif a:bang
-		if empty(s:bookmarks)
+		if len(s:bookmarks) == 1
 			echo 'No bookmarks saved'
 		elseif confirm("Delete all bookmarks?", "&No\n&Yes") == 2
-			call filter(s:bookmarks, 0)
+			call filter(s:bookmarks, 'v:key == ""')
 		endif
 	endif
 endfun  " }}}
@@ -1356,7 +1364,7 @@ fun! s:markbypat(pattern, bang, yank)  " {{{
 		return
 	endif
 	let l:oldlen = len(l:list)
-	let l:tree = empty(b:fm_filters) ? b:fm_tree : s:filtercontents(b:fm_tree, '')
+	let l:tree = empty(b:fm_filters) ? b:fm_tree : s:filtercontents(b:fm_tree, '', 0)
 	let l:matches = s:namematches(l:tree, '', a:pattern.(a:pattern[-1:-1] == '$' ? '' : '[^/]*$'))
 	if a:bang
 		call filter(map(l:matches, 'index(l:list, v:val)'), 'v:val != -1')
@@ -1886,6 +1894,11 @@ fun! s:checkconfig()  " {{{
 		echomsg 'Invalid window size "'.s:winsize.'". Variable set to 20'
 		let s:winsize = 20
 	endif
+	if s:skipfilterdirs < 0
+		echomsg 'Invalid depth '.s:skipfilterdirs.' of directory '
+		        \.'immunity to filters. Variable reset'
+		let s:skipfilterdirs = 0
+	endif
 	if s:ignorecase != '' && s:ignorecase !=# '\c' && s:ignorecase !=# '\C'
 		echomsg 'Invalid ignore case option "'.s:ignorecase.'". Variable reset'
 		let s:ignorecase = ''
@@ -1957,7 +1970,7 @@ fun! s:definemapcmdautocmd()  " {{{
 	nnoremap <nowait> <buffer>  gi       <cmd>call <sid>setignorecase()<cr>
 	nnoremap <nowait> <buffer>  gh       <cmd>call <sid>toggleshowhidden()<cr>
 	nnoremap <nowait> <buffer>  gG       <cmd>call <sid>togglerespectgitignore()<cr>
-	nnoremap <nowait> <buffer>  gd       <cmd>call <sid>togglefilterdirs()<cr>
+	nnoremap <nowait> <buffer>  gd       <cmd>call <sid>setskipfilterdirs()<cr>
 	nnoremap <nowait> <buffer>  gF       <cmd>call <sid>printfilters()<cr>
 	nnoremap <nowait> <buffer>  <c-l>    <cmd>call <sid>refreshtree(0)<cr><c-l>
 	nnoremap <nowait> <buffer>  <c-r>    <cmd>call <sid>refreshtree(1)<cr>
