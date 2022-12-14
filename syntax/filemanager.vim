@@ -2,9 +2,10 @@
 let s:depthstr = '| '
 let s:depthstrmarked = '|+'
 let s:depthstryanked = '|-'
-let s:depthstrpat = '\%(|[ +-]\)'
+let s:depthstrmarknyanked = '|#'
+let s:depthstrpat = '\%(|[ +-\#]\)'
 let s:depthstronlypat = '\%(| \)'
-let s:depthstrmarkedpat = '\%(|+\)'
+let s:depthstrmarkedpat = '\%(|[+\#]\)'
 let s:depthstryankedpat = '\%(|-\)'
 let s:separator = "'"  " separates depth and file type from file name
 let s:seppat = "'"     " in case separator is a special character

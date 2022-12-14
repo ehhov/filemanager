@@ -46,9 +46,10 @@ let s:sortorder = get(g:, 'filemanager_sortorder', '*/,*,.*/,.*,^__pycache__/$,\
 let s:depthstr = '| '
 let s:depthstrmarked = '|+'
 let s:depthstryanked = '|-'
-let s:depthstrpat = '\%(|[ +-]\)'
+let s:depthstrmarknyanked = '|#'
+let s:depthstrpat = '\%(|[ +-\#]\)'
 let s:depthstronlypat = '\%(| \)'
-let s:depthstrmarkedpat = '\%(|+\)'
+let s:depthstrmarkedpat = '\%(|[+\#]\)'
 let s:depthstryankedpat = '\%(|-\)'
 let s:separator = "'"  " separates depth and file type from file name
 let s:seppat = "'"     " in case separator is a special character
@@ -266,9 +267,13 @@ fun! s:printcontents(dic, path, depth, linenr)  " {{{
 			let l:line = l:name.s:separator
 		endif
 
-		if index(b:fm_marked, a:path.l:name) != -1
+		let l:m = index(b:fm_marked, a:path.l:name) != -1
+		let l:y = index(s:yanked, a:path.l:name) != -1
+		if l:m && l:y
+			let l:line = repeat(s:depthstrmarknyanked, a:depth).s:separator.l:line
+		elseif l:m
 			let l:line = repeat(s:depthstrmarked, a:depth).s:separator.l:line
-		elseif index(s:yanked, a:path.l:name) != -1
+		elseif l:y
 			let l:line = repeat(s:depthstryanked, a:depth).s:separator.l:line
 		else
 			let l:line = repeat(s:depthstr, a:depth).s:separator.l:line
