@@ -161,9 +161,9 @@ Further functionality is best presented by mappings and commands themselves:
   '"0123456789qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM[]{};:,.<>/?\!@#$%^&*()-_=+`~
 
   Enter in command line mode is mapped to replace <marked>, <yanked>, 
-  and <cfile> with lists of marked and yanked items and the item under 
+  and <cursor> with lists of marked and yanked items and the item under 
   the cursor, respectively, in all :! shell commands.
-  Use <lt>marked>, etc. to type them literally.
+  Use <less>marked>, etc. similar to Vim's <lt> to type them literally.
 
 
 What filemanager doesn't do and probably never will includes:

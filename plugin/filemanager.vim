@@ -1816,7 +1816,7 @@ endfun  " }}}
 
 
 fun! s:processcmdline()  " {{{
-	if getcmdtype() != ':' || getcmdline() !~# '<\(yanked\|marked\|cfile\|lt\)>'
+	if getcmdtype() != ':' || getcmdline() !~# '<\(yanked\|marked\|cursor\|less\)>'
 		return getcmdline()
 	endif
 
@@ -1846,7 +1846,7 @@ fun! s:processcmdline()  " {{{
 		let l:markedsh = ''
 	endif
 
-	if getcmdline() =~# '<cfile>'
+	if getcmdline() =~# '<cursor>'
 		let l:cfile = shellescape(s:undercursor(0), 1)
 	else
 		let l:cfile = ''
@@ -1862,14 +1862,14 @@ fun! s:processcmdline()  " {{{
 	call histadd(':', getcmdline())
 	au filemanager ShellCmdPost  <buffer>  ++once call histdel(':', -1)
 
-	let l:split = split(getcmdline(), '<lt>', 1)
+	let l:split = split(getcmdline(), '<less>', 1)
 	call map(l:split, 'split(v:val, "<marked>", 1)')
 	" Cannot join here since marked filenames may include <yanked>.
 	" Also avoid potential problems with nested v:val usage in map(map()).
 	for l:listI in l:split
 		call map(l:listI, 'split(v:val, "<yanked>", 1)')
 		for l:listII in l:listI
-			call map(l:listII, 'split(v:val, "<cfile>", 1)')
+			call map(l:listII, 'split(v:val, "<cursor>", 1)')
 			call map(l:listII, 'join(v:val, l:cfile)')
 		endfor
 		call map(l:listI, 'join(v:val, l:yankedsh)')
