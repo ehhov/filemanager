@@ -367,30 +367,59 @@ fun! s:printtree(restview, movetopath='', movetotwo=0)  " {{{
 endfun  " }}}
 
 
-fun! s:undercursor(keeptrailslash, linenr=-1, lines=0)  " {{{
+fun! s:undercursor(keeptrailslash, linenr=-1)  " {{{
 	let l:linenr = a:linenr < 0 ? line('.') : a:linenr
 
-	if l:linenr == 1 && type(a:lines) != v:t_list
+	if l:linenr == 1
 		return fnamemodify(b:fm_treeroot, ':h:h')
-	elseif l:linenr == 2 && type(a:lines) != v:t_list
+	elseif l:linenr == 2
 		return fnamemodify(b:fm_treeroot, ':h')
 	endif
 
 	let l:path = ''
-	let l:depth = len(s:depthstr) * b:fm_maxdepth + len(s:separator) + 1
+	let l:depth = v:numbermax
 
 	while l:depth > len(s:depthstr) + len(s:separator)
-		let l:line = type(a:lines) == v:t_list ? a:lines[l:linenr] : getline(l:linenr)
+		let l:line = getline(l:linenr)
 		let l:nodepth = substitute(l:line, '^'.s:depthstrpat.'*'.s:seppat, '', '')
-		let l:otherdepth = len(l:line) - len(l:nodepth)
+		let l:curdepth = len(l:line) - len(l:nodepth)
 		let l:linenr -= 1
-		if l:depth > l:otherdepth
+		if l:depth > l:curdepth
 			let l:path = '/'.substitute(l:nodepth, s:seppat.s:filetypepat.'$', '', '').l:path
-			let l:depth = l:otherdepth
+			let l:depth = l:curdepth
 		endif
 	endwhile
 
 	return b:fm_treeroot[:-2].(!a:keeptrailslash && l:path[-1:-1] == '/' ? l:path[:-2] : l:path)
+endfun  " }}}
+
+
+fun! s:undercursorlist(keeptrailslash, linenrlist, lines=0, shift=0)  " {{{
+	let l:paths = []
+	let l:depths = []
+	call reverse(a:linenrlist)
+
+	while !empty(a:linenrlist)
+		let l:linenr = remove(a:linenrlist, 0)
+		call insert(l:paths, '')
+		call insert(l:depths, v:numbermax)
+		while !empty(filter(l:depths, 'v:val > len(s:depthstr) + len(s:separator)'))
+			if !empty(a:linenrlist) && l:linenr == a:linenrlist[0]
+				call insert(l:paths, '')
+				call insert(l:depths, v:numbermax)
+				call remove(a:linenrlist, 0)
+			endif
+			let l:line = type(a:lines) == v:t_list ? a:lines[l:linenr-a:shift] : getline(l:linenr)
+			let l:nodepth = substitute(l:line, '^'.s:depthstrpat.'*'.s:seppat, '', '')
+			let l:curdepth = len(l:line) - len(l:nodepth)
+			let l:linenr -= 1
+			for l:i in filter(range(len(l:depths)), 'l:depths[v:val] > l:curdepth')
+				let l:paths[l:i] = '/'.substitute(l:nodepth, s:seppat.s:filetypepat.'$', '', '').l:paths[l:i]
+				let l:depths[l:i] = l:curdepth
+			endfor
+		endwhile
+	endwhile
+	return map(l:paths, 'b:fm_treeroot[:-2].(!a:keeptrailslash && v:val[-1:-1] == "/" ? v:val[:-2] : v:val)')
 endfun  " }}}
 
 
@@ -1395,8 +1424,7 @@ fun! s:mark(ends)  " {{{
 	        echo 'Skipping "'.l:path.'"'
 	endfor
 	" uniq() for possible empty directories
-	for l:path in uniq(map(filter(range(min(a:ends), max(a:ends)), 'v:val > 2'),
-	                      \'s:undercursor(0, v:val)'))
+	for l:path in uniq(s:undercursorlist(0, filter(range(min(a:ends), max(a:ends)), 'v:val > 2')))
 		let l:i = index(b:fm_marked, l:path)
 		if l:i == -1
 			call add(l:newpaths, l:path)
@@ -1722,8 +1750,8 @@ fun! s:renamefinish(do)  " {{{
 			echo 'Nothing to rename'
 			return s:renamefinish(0)
 		endif
-		let l:renameto = map(copy(l:changed), 's:undercursor(1, v:val)')
-		let l:renamefrom = map(copy(l:changed), 's:undercursor(1, v:val - 3, b:fm_renamefrom)')
+		let l:renameto = s:undercursorlist(1, copy(l:changed))
+		let l:renamefrom = s:undercursorlist(1, l:changed, b:fm_renamefrom, 3)
 		call s:renamebylist(l:renamefrom, l:renameto)
 	endif
 
@@ -1792,8 +1820,7 @@ fun! s:visualcmd(cmd, ends)  " {{{
 	        echo 'Skipping "'.l:path.'"'
 	endfor
 	" uniq() for possible empty directories
-	let l:list = uniq(map(filter(range(min(a:ends), max(a:ends)), 'v:val > 2'),
-	                      \'s:undercursor(0, v:val)'))
+	let l:list = uniq(s:undercursorlist(0, filter(range(min(a:ends), max(a:ends)), 'v:val > 2')))
 	if a:cmd ==# 'y'
 		call s:yankmarked(l:list)
 	elseif a:cmd ==# 'Y'
