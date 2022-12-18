@@ -1956,8 +1956,11 @@ fun! s:processcmdline()  " {{{
 	" Save current un-expanded cmdline to history and delete the expanded
 	" version after hitting enter. CmdlineLeave is triggered before
 	" leaving, so delete on ShellCmdPost as a workaround.
+	" Delete only when the cmdline actually contains '!'.
 	call histadd(':', getcmdline())
-	au filemanager ShellCmdPost  <buffer>  ++once call histdel(':', -1)
+	if getcmdline() =~# '\(^\|[^\\]\)!'
+		au filemanager ShellCmdPost  <buffer>  ++once call histdel(':', -1)
+	endif
 
 	let l:split = split(getcmdline(), '<less>', 1)
 	call map(l:split, 'split(v:val, "<marked>", 1)')
