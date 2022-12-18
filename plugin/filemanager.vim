@@ -258,18 +258,20 @@ fun! s:printcontents(dic, path, depth, linenr)  " {{{
 			endif
 			" Directory was empty
 			let l:line = s:separator
+		elseif executable(a:path.l:name) && l:ftype != 'link' && l:ftype != 'dir'
+			let l:line = l:name.s:separator.'*'
+		elseif l:ftype == 'file'
+			let l:line = l:name.s:separator
 		elseif l:ftype == 'dir'
 			let l:line = l:name.s:separator.'/'
-		elseif l:ftype == 'link' && !s:pathexists(a:path.l:name, 0)
-			let l:line = l:name.s:separator.'!@'
-		elseif l:ftype == 'link'
+		elseif l:ftype == 'link' && s:pathexists(a:path.l:name, 0)
 			let l:line = l:name.s:separator.'@'
+		elseif l:ftype == 'link'
+			let l:line = l:name.s:separator.'!@'
 		elseif l:ftype == 'socket'
 			let l:line = l:name.s:separator.'='
 		elseif l:ftype == 'fifo'
 			let l:line = l:name.s:separator.'|'
-		elseif executable(a:path.l:name)
-			let l:line = l:name.s:separator.'*'
 		else
 			let l:line = l:name.s:separator
 		endif
