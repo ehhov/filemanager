@@ -100,8 +100,19 @@ endif
 
 
 " Directory listing {{{
+fun! s:pathexists(path, alllinks)  " {{{
+	let l:wildignorecasesave = &wildignorecase
+	let l:fileignorecasesave = &fileignorecase
+	set nowildignorecase nofileignorecase
+	let l:ret = !empty(glob(escape(fnameescape(a:path), '~'), 1, 0, a:alllinks))
+	let &wildignorecase = l:wildignorecasesave
+	let &fileignorecase = l:fileignorecasesave
+	return l:ret
+endfun  " }}}
+
+
 fun! s:dirreadable(path)  " {{{
-	return isdirectory(a:path) && !empty(glob(escape(fnameescape(a:path), '~').'/.', 1, 1, 1))
+	return isdirectory(a:path) && s:pathexists(a:path.'/.', 1)
 endfun  " }}}
 
 
@@ -134,10 +145,15 @@ fun! s:getdircontents(path)  " {{{
 			let l:ignored += l:gitignored
 		endif
 	endif
+	let l:wildignorecasesave = &wildignorecase
+	let l:fileignorecasesave = &fileignorecase
+	set nowildignorecase nofileignorecase
 	let l:list = glob(l:path.'/*', !s:respectwildignore, 1, 1)
 	if b:fm_showhidden
 		let l:list += glob(l:path.'/.*', !s:respectwildignore, 1, 1)
 	endif
+	let &wildignorecase = l:wildignorecasesave
+	let &fileignorecase = l:fileignorecasesave
 	for l:item in l:list
 		let l:dic[fnamemodify(l:item, ':t')] = isdirectory(l:item) ? {} : 0
 	endfor
@@ -244,7 +260,7 @@ fun! s:printcontents(dic, path, depth, linenr)  " {{{
 			let l:line = s:separator
 		elseif l:ftype == 'dir'
 			let l:line = l:name.s:separator.'/'
-		elseif l:ftype == 'link' && empty(glob(escape(fnameescape(a:path.l:name), '~'), 1, 1, 0))
+		elseif l:ftype == 'link' && !s:pathexists(a:path.l:name, 0)
 			let l:line = l:name.s:separator.'!@'
 		elseif l:ftype == 'link'
 			let l:line = l:name.s:separator.'@'
@@ -931,7 +947,7 @@ fun! s:writebookmarks(operation)  " {{{
 	endif
 	let l:err = 1
 	try
-		if empty(glob(escape(fnameescape(fnamemodify(s:bookmarkfile, ':h')), '~'), 1, 1, 1))
+		if !s:pathexists(fnamemodify(s:bookmarkfile, ':h'), 1)
 			call mkdir(fnamemodify(s:bookmarkfile, ':h'), 'p')
 		endif
 		let l:err = writefile([string(l:saved)], s:bookmarkfile)
@@ -1058,7 +1074,7 @@ fun! s:bookmarkdel(bang, name)  " {{{
 		call s:bookmarkdel(a:bang, '')
 		call s:bookmarkdel('', a:name)
 	elseif a:name ==# 'file' && !empty(s:bookmarkfile)
-		if empty(glob(escape(fnameescape(s:bookmarkfile), '~'), 1, 1, 1))
+		if !s:pathexists(s:bookmarkfile, 1)
 			echomsg 'Bookmark file non-existent'
 		elseif confirm("Delete bookmark file?", "&No\n&Yes") == 2 && delete(s:bookmarkfile)
 			echohl ErrorMsg
@@ -1105,7 +1121,7 @@ fun! s:newdir()  " {{{
 	let l:name = substitute(l:name, '^\s*\~[^/]*/', expandcmd(l:substring), '')
 	let l:name = l:name[0] == '/' ? l:name : substitute(l:path, '/$', '', '').'/'.l:name
 	let l:name = s:simplify(l:name)
-	if !empty(glob(escape(fnameescape(l:name), '~'), 1, 1, 1))
+	if s:pathexists(l:name, 1)
 		echo 'Path exists: "'.l:name.'"'
 		return
 	endif
@@ -1216,7 +1232,7 @@ fun! s:open(path, mode)  " {{{
 			return
 		endif
 	" Don't list missing symlinks, otherwise they are always not readable
-	elseif !empty(glob(escape(fnameescape(a:path), '~'), 1, 1, 0)) && !filereadable(a:path)
+	elseif s:pathexists(a:path, 0) && !filereadable(a:path)
 		echo '"'.a:path.'" is not readable'
 		return
 	endif
@@ -1542,7 +1558,12 @@ fun! s:pastemarked(leave, doyanked)  " {{{
 	let l:destdir = substitute(l:destdir, '/$', '', '').'/'
 
 	let l:existing = map(copy(l:list), 'fnamemodify(v:val, ":t")')
-	call filter(l:existing, '!empty(glob(escape(fnameescape(l:destdir.v:val), "~"), 1, 1, 1))')
+	let l:wildignorecasesave = &wildignorecase
+	let l:fileignorecasesave = &fileignorecase
+	set nowildignorecase nofileignorecase
+	call filter(l:existing, '!empty(glob(escape(fnameescape(l:destdir.v:val), "~"), 1, 0, 1))')
+	let &wildignorecase = l:wildignorecasesave
+	let &fileignorecase = l:fileignorecasesave
 	if !empty(l:existing)
 		echo 'Destinations already exist:'
 		echo ' '.join(l:existing, "\n ")
@@ -1764,7 +1785,12 @@ endfun  " }}}
 
 
 fun! s:renamebylist(listfrom, listto)  " {{{
-	let l:existing = filter(copy(a:listto), '!empty(glob(escape(fnameescape(v:val), "~"), 1, 1, 1))')
+	let l:wildignorecasesave = &wildignorecase
+	let l:fileignorecasesave = &fileignorecase
+	set nowildignorecase nofileignorecase
+	let l:existing = filter(copy(a:listto), '!empty(glob(escape(fnameescape(v:val), "~"), 1, 0, 1))')
+	let &wildignorecase = l:wildignorecasesave
+	let &fileignorecase = l:fileignorecasesave
 	if !empty(l:existing)
 		echo 'Destinations already exist:'
 		echo ' '.join(l:existing, "\n ")
