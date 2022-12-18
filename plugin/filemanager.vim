@@ -901,7 +901,7 @@ fun! s:printbookmarks()  " {{{
 	          \ + filter(copy(s:bookmarknames), 'has_key(s:bookmarks, v:val) && !s:bookmarks[v:val][0]')
 	          \ + filter(copy(s:bookmarknames), 'has_key(s:bookmarks, v:val) && s:bookmarks[v:val][0]')
 		let l:prepend = (s:bookmarks[l:name][0] ? 'bak ' : '').l:name.': '
-		echo l:prepend.s:bookmarks[l:name][l:i]
+		echo l:prepend.'/'.eval(s:bookmarks[l:name][l:i])[1:-2]
 		if !empty(s:bookmarks[l:name][2])
 			let l:indent = repeat(' ', len(l:prepend)+2)
 			echo l:indent.join(s:bookmarks[l:name][2], "\n".l:indent)
