@@ -1733,11 +1733,11 @@ fun! s:renametree(tree=0)  " {{{
 	call s:setbufname()
 
 	au! filemanager BufEnter,ShellCmdPost <buffer>
-	delcommand Mark
-	delcommand Yank
-	delcommand Filter
-	delcommand Bookmark
-	delcommand Delbookmark
+	delcommand -buffer Mark
+	delcommand -buffer Yank
+	delcommand -buffer Filter
+	delcommand -buffer Bookmark
+	delcommand -buffer Delbookmark
 	mapclear <buffer>
 	nnoremap <buffer>  <cr>   <cmd>call <sid>renamefinish(1)<cr>
 	inoremap <buffer>  <cr>   <esc><cmd>call <sid>renamefinish(1)<cr>
