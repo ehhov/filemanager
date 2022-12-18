@@ -309,7 +309,7 @@ fun! s:filtercontents(dic, relpath, depth)  " {{{
 		endif
 		let l:all = 1
 		for l:pattern in b:fm_filters
-			if (l:pattern[0] !=# '!') == (match(a:relpath.l:name, b:fm_ignorecase.l:pattern[1:]) == -1)
+			if (l:pattern[0] !=# '!') == (match('/'.a:relpath.l:name, b:fm_ignorecase.l:pattern[1:]) == -1)
 				let l:all = 0
 				break
 			endif
@@ -777,6 +777,13 @@ fun! s:checkregex(pattern)  " {{{
 endfun  " }}}
 
 
+fun! s:convertpattern(pat)  " {{{
+	let l:pat = a:pat[-1:-1] == '$' ? a:pat : a:pat.'[^/]*$'
+	let l:pat = l:pat[0] == '^' && l:pat[1] != '/' ? '/'.l:pat[1:] : l:pat
+	return substitute(l:pat, '//\+', '/', 'g')
+endfun  " }}}
+
+
 fun! s:filtercmd(pattern, bang)  " {{{
 	if a:pattern == ''
 		if empty(b:fm_filters)
@@ -792,7 +799,7 @@ fun! s:filtercmd(pattern, bang)  " {{{
 		if s:checkregex(a:pattern)
 			return
 		endif
-		call add(b:fm_filters, (a:bang ? '!' : ' ') . a:pattern . (a:pattern[-1:-1] == '$' ? '' : '[^/]*$'))
+		call add(b:fm_filters, (a:bang ? '!' : ' ').s:convertpattern(a:pattern))
 	endif
 
 	let l:path = s:undercursor(1)
@@ -1373,7 +1380,7 @@ endfun  " }}}
 fun! s:namematches(tree, relpath, pattern)  " {{{
 	let l:list = []
 	for [l:name, l:contents] in items(a:tree)
-		if l:name != '' && match(a:relpath.l:name, b:fm_ignorecase.a:pattern) != -1
+		if l:name != '' && match('/'.a:relpath.l:name, b:fm_ignorecase.a:pattern) != -1
 			call add(l:list, b:fm_treeroot.a:relpath.l:name)
 		endif
 		if type(l:contents) == v:t_dict && !empty(l:contents)
@@ -1399,7 +1406,7 @@ fun! s:markbypat(pattern, bang, yank)  " {{{
 	endif
 	let l:oldlen = len(l:list)
 	let l:tree = empty(b:fm_filters) ? b:fm_tree : s:filtercontents(b:fm_tree, '', 0)
-	let l:matches = s:namematches(l:tree, '', a:pattern.(a:pattern[-1:-1] == '$' ? '' : '[^/]*$'))
+	let l:matches = s:namematches(l:tree, '', s:convertpattern(a:pattern))
 	if a:bang
 		call filter(map(l:matches, 'index(l:list, v:val)'), 'v:val != -1')
 		for l:i in reverse(sort(l:matches, 'n'))
@@ -1917,10 +1924,11 @@ fun! s:checkconfig()  " {{{
 	call filter(s:sortrules, '!s:checkregex(v:key)')
 	call map(s:sortrules, '(v:val[0] == "n" && len(v:val) > 5) || v:val[0] == "o" ?'
 	                      \.'v:val[:4].s:checksortorder(v:val[5:]) : v:val')
-	for l:key in filter(keys(s:sortrules), 'v:val[-1:-1] != "$"')
-		let s:sortrules[l:key.'[^/]*$'] = s:sortrules[l:key]
+	for l:key in keys(s:sortrules)
+		let s:sortrules[s:convertpattern(l:key)] = remove(s:sortrules, l:key)
 	endfor
-	let s:sortrules = filter(copy(s:sortrules), 'v:key[-1:-1] == "$"')
+	" Avoid unverified run time changes
+	let s:sortrules = copy(s:sortrules)
 	echohl ErrorMsg
 	if s:winsize < 1 || s:winsize > 99
 		echomsg 'Invalid window size "'.s:winsize.'". Variable set to 20'
