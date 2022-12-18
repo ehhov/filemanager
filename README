@@ -148,6 +148,8 @@ Further functionality is best presented by mappings and commands themselves:
   p   or  zp            copy marked items into the directory under the cursor
   P   or  zP            copy yanked items into the directory under the cursor
                         p/P reset the corresponding list on success while zp/zP do not
+  Cp                    move marked items into the directory under the cursor
+  CP                    move yanked items into the directory under the cursor
   r                     rename item under the cursor or marked items
   R                     rename files in the tree as you see it, interactively
   <c-n>                 move cursor to the next marked item

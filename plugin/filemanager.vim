@@ -1615,6 +1615,29 @@ fun! s:pastemarked(leave, doyanked)  " {{{
 endfun  " }}}
 
 
+fun! s:movemarked(doyanked)  " {{{
+	let l:list = a:doyanked ? s:yanked : b:fm_marked
+	if empty(l:list)
+		echo 'Nothing currently '.(a:doyanked ? 'yanked' : 'marked')
+		return
+	endif
+	call sort(l:list, s:sortfunc)
+
+	echo 'Items to cut and paste:'
+	echo ' '.join(l:list, "\n ")
+	if confirm("Cut and paste?", "&No\n&Yes") < 2
+		echo 'Operation canceled'
+		return
+	endif
+
+	let l:destdir = fnamemodify(s:undercursor(1, line('.') > 3 ? line('.') : 3), ':h')
+	let l:destdir = substitute(l:destdir, '/$', '', '').'/'
+	let l:destlist = map(copy(l:list), 'l:destdir.fnamemodify(v:val, ":t")')
+	call s:renamebylist(l:list, l:destlist)
+	call s:refreshtree(0)
+endfun  " }}}
+
+
 fun! s:deletemarked(doyanked, list=0)  " {{{
 	if a:doyanked && empty(s:yanked)
 		echo 'Nothing currently yanked'
@@ -2066,6 +2089,9 @@ fun! s:definemapcmdautocmd()  " {{{
 	nnoremap <nowait> <buffer>  P        <cmd>call <sid>pastemarked(0, 1)<cr>
 	nnoremap <nowait> <buffer>  zp       <cmd>call <sid>pastemarked(1, 0)<cr>
 	nnoremap <nowait> <buffer>  zP       <cmd>call <sid>pastemarked(1, 1)<cr>
+	nnoremap <nowait> <buffer>  C        <nop>
+	nnoremap <nowait> <buffer>  Cp       <cmd>call <sid>movemarked(0)<cr>
+	nnoremap <nowait> <buffer>  CP       <cmd>call <sid>movemarked(1)<cr>
 	nnoremap <nowait> <buffer>  zD       <cmd>call <sid>deletemarked(1)<cr>
 	nnoremap <nowait> <buffer>  <s-del>  <cmd>call <sid>deletemarked(1)<cr>
 	nnoremap <nowait> <buffer>  <c-n>    <cmd>call <sid>gotomarked(0)<cr>
