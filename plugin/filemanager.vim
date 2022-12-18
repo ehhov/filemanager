@@ -83,8 +83,9 @@ let s:yanked = []
 let s:yankedtick = 0
 
 " '' key for s:fixoldbookmarks()
-let s:bookmarks = {'': 0}
-let s:bookmarkvars = ['treeroot', 'filters', 'marked'] + s:tabvars
+let s:bookmarks = {'': 1}
+" Should agree with s:bookmarksave()
+let s:bookmarkvars = ['bak', 'cursor', 'opendirs', 'treeroot', 'filters', 'marked'] + s:tabvars
 let s:bookmarknames = "'".'"0123456789qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM[]{};:,.<>/?\!@#$%^&*()-_=+`~'
 let s:bookmarknames = map(range(len(s:bookmarknames)), 's:bookmarknames[v:val]')
 if s:usebookmarkfile
@@ -848,10 +849,12 @@ endfun  " }}}
 fun! s:bookmarksave(name, bak)  " {{{
 	if !a:bak && a:name ==# s:bookmarknames[0]
 		call s:bookmarkbackup(bufnr())
-		let s:bookmarks[a:name][0] = 0
+		let s:bookmarks[a:name][index(s:bookmarkvars, 'bak')] = 0
 	else
-		" string() needed since marked and filters are lists
-		let s:bookmarks[a:name] = map(copy(s:bookmarkvars), 'string(eval("b:fm_".v:val))')
+		let s:bookmarks[a:name] = map(copy(s:tabvars), 'eval("b:fm_".v:val)')
+		call insert(s:bookmarks[a:name], string(b:fm_marked))
+		call insert(s:bookmarks[a:name], string(b:fm_filters))
+		call insert(s:bookmarks[a:name], b:fm_treeroot)
 		call insert(s:bookmarks[a:name], s:opendirs(b:fm_tree, ''))
 		call insert(s:bookmarks[a:name], s:undercursor(1))
 		call insert(s:bookmarks[a:name], a:bak)
@@ -866,10 +869,11 @@ fun! s:bookmarkbackup(bufnr)  " {{{
 	if exists('b:fm_changedticksave') && b:fm_changedticksave == b:changedtick
 		return
 	endif
+	let l:bakind = index(s:bookmarkvars, 'bak')
 	let l:shift = []
 	for l:name in s:bookmarknames
 		if has_key(s:bookmarks, l:name)
-			if s:bookmarks[l:name][0]
+			if s:bookmarks[l:name][l:bakind]
 				call insert(l:shift, l:name)
 			endif
 		else
@@ -892,17 +896,20 @@ fun! s:bookmarkrestore(name)  " {{{
 	endif
 	let l:bookmark = s:bookmarks[a:name]
 	call s:bookmarkbackup(bufnr())
-	let l:i = 3
-	for l:var in s:bookmarkvars
-		exe 'let b:fm_'.l:var.' = '.l:bookmark[l:i]
+	let l:i = index(s:bookmarkvars, s:tabvars[0])
+	for l:var in s:tabvars
+		call setbufvar(bufnr(), 'fm_'.l:var, l:bookmark[l:i])
 		let l:i += 1
 	endfor
-	let b:fm_markedtick += 1  " since marked is also restored
+	let b:fm_treeroot = l:bookmark[index(s:bookmarkvars, 'treeroot')]
+	let b:fm_filters = eval(l:bookmark[index(s:bookmarkvars, 'filters')])
+	let b:fm_marked = eval(l:bookmark[index(s:bookmarkvars, 'marked')])
+	let b:fm_markedtick += 1
 	let b:fm_tree = s:getdircontents(b:fm_treeroot)
-	for l:path in l:bookmark[2]
+	for l:path in l:bookmark[index(s:bookmarkvars, 'opendirs')]
 		call s:toggledir(b:fm_treeroot.l:path, 2, 1)
 	endfor
-	call s:printtree(0, l:bookmark[1], 1)
+	call s:printtree(0, l:bookmark[index(s:bookmarkvars, 'cursor')], 1)
 	let b:fm_changedticksave = b:changedtick
 	echomsg 'Bookmark "'.a:name.'" restored'
 endfun  " }}}
@@ -913,16 +920,18 @@ fun! s:printbookmarks()  " {{{
 		echo 'No bookmarks saved'
 		return
 	endif
+	let l:rootind = index(s:bookmarkvars, 'treeroot')
+	let l:openind = index(s:bookmarkvars, 'opendirs')
+	let l:bakind = index(s:bookmarkvars, 'bak')
 	echo 'Bookmarks:'
-	let l:i = index(s:bookmarkvars, 'treeroot') + 3
 	for l:name in sort(filter(keys(s:bookmarks), 'v:val != "" && index(s:bookmarknames, v:val) == -1'), s:sortfunc)
-	          \ + filter(copy(s:bookmarknames), 'has_key(s:bookmarks, v:val) && !s:bookmarks[v:val][0]')
-	          \ + filter(copy(s:bookmarknames), 'has_key(s:bookmarks, v:val) && s:bookmarks[v:val][0]')
-		let l:prepend = (s:bookmarks[l:name][0] ? 'bak ' : '').l:name.': '
-		echo l:prepend.'/'.eval(s:bookmarks[l:name][l:i])[1:-2]
-		if !empty(s:bookmarks[l:name][2])
+	          \ + filter(copy(s:bookmarknames), 'has_key(s:bookmarks, v:val) && !s:bookmarks[v:val][l:bakind]')
+	          \ + filter(copy(s:bookmarknames), 'has_key(s:bookmarks, v:val) && s:bookmarks[v:val][l:bakind]')
+		let l:prepend = (s:bookmarks[l:name][l:bakind] ? 'bak ' : '').l:name.': '
+		echo l:prepend.'/'.s:bookmarks[l:name][l:rootind][1:-2]
+		if !empty(s:bookmarks[l:name][l:openind])
 			let l:indent = repeat(' ', len(l:prepend)+2)
-			echo l:indent.join(s:bookmarks[l:name][2], "\n".l:indent)
+			echo l:indent.join(s:bookmarks[l:name][l:openind], "\n".l:indent)
 		endif
 	endfor
 endfun  " }}}
@@ -932,9 +941,10 @@ fun! s:writebookmarks(operation)  " {{{
 	if s:writebackupbookmarks && s:writeshortbookmarks
 		let l:bookmarks = s:bookmarks
 	elseif s:writeshortbookmarks
-		let l:bookmarks = filter(copy(s:bookmarks), '!v:val[0]')
+		let l:bakind = index(s:bookmarkvars, 'bak')
+		let l:bookmarks = filter(copy(s:bookmarks), 'v:key == "" || !v:val[l:bakind]')
 	else
-		let l:bookmarks = filter(copy(s:bookmarks), 'index(s:bookmarknames, v:val) == -1')
+		let l:bookmarks = filter(copy(s:bookmarks), 'v:key == "" || index(s:bookmarknames, v:val) == -1')
 	endif
 	if a:operation != 1 && filereadable(s:bookmarkfile)
 		let l:saved = readfile(s:bookmarkfile)
@@ -998,6 +1008,12 @@ fun! s:fixoldbookmarks(bookmarks)  " {{{
 		endfor
 		let a:bookmarks[''] = 0
 	endif
+	if a:bookmarks[''] == 0
+		for l:bookmark in values(filter(a:bookmarks, 'v:key != ""'))
+			call map(l:bookmark, 'v:key == 3 || v:key > 5 ? eval(v:val) : v:val')
+		endfor
+		let a:bookmarks[''] = 1
+	endif
 	return a:bookmarks
 endfun  " }}}
 
@@ -1037,18 +1053,20 @@ endfun  " }}}
 
 
 fun! s:bookmarksuggest(arglead, cmdline, curpos)  " {{{
+	let l:bakind = index(s:bookmarkvars, 'bak')
 	let l:list = sort(filter(keys(s:bookmarks), 'v:val != "" && index(s:bookmarknames, v:val) == -1'), s:sortfunc)
-	          \ + filter(copy(s:bookmarknames), 'has_key(s:bookmarks, v:val) && !s:bookmarks[v:val][0]')
-	          \ + filter(copy(s:bookmarknames), 'has_key(s:bookmarks, v:val) && s:bookmarks[v:val][0]')
+	          \ + filter(copy(s:bookmarknames), 'has_key(s:bookmarks, v:val) && !s:bookmarks[v:val][l:bakind]')
+	          \ + filter(copy(s:bookmarknames), 'has_key(s:bookmarks, v:val) && s:bookmarks[v:val][l:bakind]')
 	          \ + ['load', 'write']
 	return empty(a:arglead) ? l:list : filter(l:list, 'v:val[:len(a:arglead)-1] == a:arglead')
 endfun  " }}}
 
 
 fun! s:bookmarkdelsuggest(arglead, cmdline, curpos)  " {{{
+	let l:bakind = index(s:bookmarkvars, 'bak')
 	let l:list = sort(filter(keys(s:bookmarks), 'v:val != "" && index(s:bookmarknames, v:val) == -1'), s:sortfunc)
-	          \ + filter(copy(s:bookmarknames), 'has_key(s:bookmarks, v:val) && !s:bookmarks[v:val][0]')
-	          \ + filter(copy(s:bookmarknames), 'has_key(s:bookmarks, v:val) && s:bookmarks[v:val][0]')
+	          \ + filter(copy(s:bookmarknames), 'has_key(s:bookmarks, v:val) && !s:bookmarks[v:val][l:bakind]')
+	          \ + filter(copy(s:bookmarknames), 'has_key(s:bookmarks, v:val) && s:bookmarks[v:val][l:bakind]')
 	          \ + ['file']
 	return empty(a:arglead) ? l:list : filter(l:list, 'v:val[:len(a:arglead)-1] == a:arglead')
 endfun  " }}}
