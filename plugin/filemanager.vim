@@ -93,15 +93,6 @@ if s:usebookmarkfile
 	else
 		let s:bookmarkfile = getenv('HOME').'/.vim/.filemanagerbookmarks'
 	endif
-	if empty(glob(escape(fnameescape(fnamemodify(s:bookmarkfile, ':h')), '~'), 1, 1, 1))
-		try
-			call mkdir(fnamemodify(s:bookmarkfile, ':h'), 'p')
-		catch /^Vim\%((\a\+)\)\?:E739/
-			echohl ErrorMsg
-			echomsg 'Failed to create cache directory for filemanager bookmarks'
-			echohl None
-		endtry
-	endif
 else
 	let s:bookmarkfile = ''
 endif
@@ -940,6 +931,9 @@ fun! s:writebookmarks(operation)  " {{{
 	endif
 	let l:err = 1
 	try
+		if empty(glob(escape(fnameescape(fnamemodify(s:bookmarkfile, ':h')), '~'), 1, 1, 1))
+			call mkdir(fnamemodify(s:bookmarkfile, ':h'), 'p')
+		endif
 		let l:err = writefile([string(l:saved)], s:bookmarkfile)
 	finally
 		" No error only when writefile() finishes and returns 0
