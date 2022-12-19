@@ -1476,7 +1476,7 @@ endfun  " }}}
 
 fun! s:mark(ends)  " {{{
 	let l:presentpaths = []
-	let l:newpaths = []
+	let l:oldlen = len(b:fm_marked)
 	for l:path in uniq(map(filter(range(min(a:ends), max(a:ends)), 'v:val < 3'),
 	                      \'s:undercursor(0, v:val)'))
 	        echo 'Skipping "'.l:path.'"'
@@ -1485,19 +1485,17 @@ fun! s:mark(ends)  " {{{
 	for l:path in uniq(s:undercursorlist(0, filter(range(min(a:ends), max(a:ends)), 'v:val > 2')))
 		let l:i = index(b:fm_marked, l:path)
 		if l:i == -1
-			call add(l:newpaths, l:path)
+			call add(b:fm_marked, l:path)
 		else
 			call add(l:presentpaths, l:i)
 		endif
 	endfor
-	if empty(l:newpaths) && empty(l:presentpaths)
+	if len(b:fm_marked) == l:oldlen && empty(l:presentpaths)
 		return
-	elseif empty(l:newpaths)
+	elseif len(b:fm_marked) == l:oldlen
 		for l:i in reverse(sort(l:presentpaths, 'n'))
 			call remove(b:fm_marked, l:i)
 		endfor
-	else
-		let b:fm_marked += l:newpaths
 	endif
 	let b:fm_markedtick += 1
 	call s:printtree(1)
