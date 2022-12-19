@@ -50,12 +50,15 @@ Further functionality is best presented by mappings and commands themselves:
   :Filter {pat}           add a regex to filter directory tree contents
   :Filter! {pat}          add a regex for exclusive filtering
   :Filter[!]              remove last applied filter (or all of them with !)
+  :GFilter[!] [{glob}]    same as :Filter, but convert {glob} to regex
 
   :Mark[!] {pat}          mark items matching {pat} or unmark if ! is present
   :Yank[!] {pat}          yank items into a list shared by all filemanager buffers
   :Mark  :Yank            print marked and yanked lists
+  :GMark[!] [{glob}]      same as :Mark, but convert {glob} to regex
+  :GYank[!] [{glob}]      same as :Yank, but convert {glob} to regex
 
-  For Mark, Yank, and Filter, the pattern is matched against the last 
+  When marking and filtering, the pattern is matched against the last 
   parts of path relative to tree root and may include '/'. For example, 
   the pattern "dir/name" will match
     'rel/path/to/endingwith_dir/name_startingwith'
@@ -63,7 +66,7 @@ Further functionality is best presented by mappings and commands themselves:
     'rel/path/to/endingwith_dir/name_startingwith/itscontents'
   One may use 'dir/name.*' to mark everything under 'dir/name*/' as 
   well. Note that no wizardry is applied, so be careful and use '[^/]*' 
-  instead of '.*' where appropriate.
+  instead of '.*' where appropriate in regex functions.
 
   :Bookmark               print saved bookmarks
   :Bookmark {name}        restore bookmark {name}

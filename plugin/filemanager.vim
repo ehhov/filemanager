@@ -787,14 +787,35 @@ fun! s:checkregex(pattern)  " {{{
 endfun  " }}}
 
 
-fun! s:convertpattern(pat)  " {{{
-	let l:pat = a:pat[-1:-1] == '$' ? a:pat : a:pat.'[^/]*$'
+fun! s:checkglob(pattern)  " {{{
+	try
+		call glob2regpat(a:pattern)
+	catch /^Vim\%((\a\+)\)\?:/
+		echohl ErrorMsg
+		echomsg 'Invalid glob "'.a:pattern.'". '.substitute(v:exception, '^Vim\%((\a\+)\)\?:', '', '')
+		echohl None
+		return 1
+	endtry
+	return 0
+endfun  " }}}
+
+
+fun! s:convertpattern(pat, glob)  " {{{
+	let l:pat = a:glob ? glob2regpat(a:pat) : a:pat
 	let l:pat = l:pat[0] == '^' && l:pat[1] != '/' ? '/'.l:pat[1:] : l:pat
+	if a:glob
+		" Conversion tricks that make sense only together
+		let l:pat = substitute(l:pat, '\(^\|/\)\.\*', '/[^/\\.][^/]*', 'g')
+		let l:pat = substitute(l:pat, '\(^\|/\)\.', '/[^/\\.]', 'g')
+		let l:pat = substitute(l:pat, '\.\*', '[^/]*', 'g')
+		let l:pat = substitute(l:pat, '\(^\|[^\\]\)\zs\.', '[^/]', 'g')
+	endif
+	let l:pat = l:pat[-1:-1] == '$' ? l:pat : l:pat.'[^/]*$'
 	return substitute(l:pat, '//\+', '/', 'g')
 endfun  " }}}
 
 
-fun! s:filtercmd(pattern, bang)  " {{{
+fun! s:filtercmd(pattern, bang, glob)  " {{{
 	if a:pattern == ''
 		if empty(b:fm_filters)
 			echo 'No filters applied'
@@ -806,10 +827,10 @@ fun! s:filtercmd(pattern, bang)  " {{{
 			call remove(b:fm_filters, -1)
 		endif
 	else
-		if s:checkregex(a:pattern)
+		if a:glob ? s:checkglob(a:pattern) : s:checkregex(a:pattern)
 			return
 		endif
-		call add(b:fm_filters, (a:bang ? '!' : ' ').s:convertpattern(a:pattern))
+		call add(b:fm_filters, (a:bang ? '!' : ' ').s:convertpattern(a:pattern, a:glob))
 	endif
 
 	let l:path = s:undercursor(1)
@@ -1421,10 +1442,7 @@ fun! s:namematches(tree, relpath, pattern)  " {{{
 endfun  " }}}
 
 
-fun! s:markbypat(pattern, bang, yank)  " {{{
-	if s:checkregex(a:pattern)
-		return
-	endif
+fun! s:markbypat(pattern, bang, glob, yank)  " {{{
 	let l:list = a:yank ? s:yanked : b:fm_marked
 	if empty(a:pattern) && empty(l:list)
 		echo a:yank ? 'Yanked list empty' : 'Marked list empty'
@@ -1434,9 +1452,12 @@ fun! s:markbypat(pattern, bang, yank)  " {{{
 		echo ' '.join(l:list, "\n ")
 		return
 	endif
+	if a:glob ? s:checkglob(a:pattern) : s:checkregex(a:pattern)
+		return
+	endif
 	let l:oldlen = len(l:list)
 	let l:tree = empty(b:fm_filters) ? b:fm_tree : s:filtercontents(b:fm_tree, '', 0)
-	let l:matches = s:namematches(l:tree, '', s:convertpattern(a:pattern))
+	let l:matches = s:namematches(l:tree, '', s:convertpattern(a:pattern, a:glob))
 	if a:bang
 		call filter(map(l:matches, 'index(l:list, v:val)'), 'v:val != -1')
 		for l:i in reverse(sort(l:matches, 'n'))
@@ -1794,6 +1815,9 @@ fun! s:renametree(tree=0)  " {{{
 	delcommand -buffer Mark
 	delcommand -buffer Yank
 	delcommand -buffer Filter
+	delcommand -buffer GMark
+	delcommand -buffer GYank
+	delcommand -buffer GFilter
 	delcommand -buffer Bookmark
 	delcommand -buffer Delbookmark
 	mapclear <buffer>
@@ -1991,7 +2015,7 @@ fun! s:checkconfig()  " {{{
 	call map(s:sortrules, '(v:val[0] == "n" && len(v:val) > 5) || v:val[0] == "o" ?'
 	                      \.'v:val[:4].s:checksortorder(v:val[5:]) : v:val')
 	for l:key in keys(s:sortrules)
-		let s:sortrules[s:convertpattern(l:key)] = remove(s:sortrules, l:key)
+		let s:sortrules[s:convertpattern(l:key, 0)] = remove(s:sortrules, l:key)
 	endfor
 	" Avoid unverified run time changes
 	let s:sortrules = copy(s:sortrules)
@@ -2026,9 +2050,12 @@ endfun  " }}}
 
 fun! s:definemapcmdautocmd()  " {{{
 	" Separete function because of s:renametree()
-	command! -buffer -bang -nargs=?  Mark         call s:markbypat(<q-args>, <bang>0, 0)
-	command! -buffer -bang -nargs=?  Yank         call s:markbypat(<q-args>, <bang>0, 1)
-	command! -buffer -bang -nargs=?  Filter       call s:filtercmd(<q-args>, <bang>0)
+	command! -buffer -bang -nargs=?  Mark         call s:markbypat(<q-args>, <bang>0, 0, 0)
+	command! -buffer -bang -nargs=?  Yank         call s:markbypat(<q-args>, <bang>0, 0, 1)
+	command! -buffer -bang -nargs=?  Filter       call s:filtercmd(<q-args>, <bang>0, 0)
+	command! -buffer -bang -nargs=?  GMark        call s:markbypat(<q-args>, <bang>0, 1, 0)
+	command! -buffer -bang -nargs=?  GYank        call s:markbypat(<q-args>, <bang>0, 1, 1)
+	command! -buffer -bang -nargs=?  GFilter      call s:filtercmd(<q-args>, <bang>0, 1)
 	command! -buffer -bang -nargs=? -complete=customlist,s:bookmarksuggest
 	                               \ Bookmark     call s:bookmarkcmd(<bang>0, <q-args>)
 	command! -buffer -bang -nargs=? -complete=customlist,s:bookmarkdelsuggest
