@@ -199,8 +199,6 @@ default values:
  g:filemanager_skipfilterdirs = 1         Depth of directory immunity to filters
  g:filemanager_settabdir = opposite of 'autochdir' (its value during startup)
                                           Set tab-local current directory to tree root
- g:filemanager_resetmarkedonsuccess = 1   Reset marked and yanked lists on successful
-                                          shell commands that use $marked and $yanked
  g:filemanager_showhidden = 1             Show hidden files (gh mapping)
  g:filemanager_respectgitignore = 1       Hide files ignored by Git (gG mapping)
  g:filemanager_respectwildignore = 0      Hide files excluded by 'wildignore'

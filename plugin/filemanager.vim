@@ -32,7 +32,6 @@ let s:writeshortbookmarks  = get(g:, 'filemanager_writeshortbookmarks',  1)
 let s:notifyoffilters      = get(g:, 'filemanager_notifyoffilters',      1)
 let s:skipfilterdirs       = get(g:, 'filemanager_skipfilterdirs',       0)
 let s:settabdir            = get(g:, 'filemanager_settabdir',  !&autochdir)
-let s:resetmarkedonsuccess = get(g:, 'filemanager_resetmarkedonsuccess', 1)
 let s:showhidden           = get(g:, 'filemanager_showhidden',           1)
 let s:respectgitignore     = get(g:, 'filemanager_respectgitignore',     1)
 let s:respectwildignore    = get(g:, 'filemanager_respectwildignore',    0)
@@ -109,6 +108,17 @@ fun! s:pathexists(path, alllinks)  " {{{
 	let &wildignorecase = l:wildignorecasesave
 	let &fileignorecase = l:fileignorecasesave
 	return l:ret
+endfun  " }}}
+
+
+fun! s:filterexisting(list)  " {{{
+	let l:wildignorecasesave = &wildignorecase
+	let l:fileignorecasesave = &fileignorecase
+	set nowildignorecase nofileignorecase
+	call filter(a:list, '!empty(glob(escape(fnameescape(v:val), "~"), 1, 0, 1))')
+	let &wildignorecase = l:wildignorecasesave
+	let &fileignorecase = l:fileignorecasesave
+	return a:list
 endfun  " }}}
 
 
@@ -1596,14 +1606,8 @@ fun! s:pastemarked(leave, doyanked)  " {{{
 	let l:destdir = fnamemodify(s:undercursor(1, line('.') > 3 ? line('.') : 3), ':h')
 	let l:destdir = substitute(l:destdir, '/$', '', '').'/'
 
-	let l:existing = map(copy(l:list), 'fnamemodify(v:val, ":t")')
-	let l:wildignorecasesave = &wildignorecase
-	let l:fileignorecasesave = &fileignorecase
-	set nowildignorecase nofileignorecase
-	call filter(l:existing, '!empty(glob(escape(fnameescape(l:destdir.v:val), "~"), 1, 0, 1))')
-	let &wildignorecase = l:wildignorecasesave
-	let &fileignorecase = l:fileignorecasesave
-	if !empty(l:existing)
+	let l:existing = map(copy(l:list), 'l:destdir.fnamemodify(v:val, ":t")')
+	if !empty(s:filterexisting(l:existing))
 		echo 'Destinations already exist:'
 		echo ' '.join(l:existing, "\n ")
 		if confirm("Overwrite?", "&No\n&Yes") < 2
@@ -1674,7 +1678,6 @@ fun! s:deletemarked(doyanked, list=0)  " {{{
 		return
 	endif
 	call sort(l:list, s:sortfunc)
-	let l:reset = 0
 
 	" Always faster than two filters
 	let l:files = []
@@ -1689,7 +1692,7 @@ fun! s:deletemarked(doyanked, list=0)  " {{{
 		if confirm("Delete printed files?", "&No\n&Yes") < 2
 			echo 'Files not deleted'
 		else
-			let l:reset = s:deletelist(l:files, '')
+			call s:deletelist(l:files, '')
 		endif
 	endif
 
@@ -1700,33 +1703,26 @@ fun! s:deletemarked(doyanked, list=0)  " {{{
 		if l:choice < 2
 			echo 'Directories not deleted'
 		else
-			let l:reset = s:deletelist(l:dirs, l:choice == 2 ? 'd' : 'rf') || l:reset
+			call s:deletelist(l:dirs, l:choice == 2 ? 'd' : 'rf')
 		endif
 	endif
 
-	if l:reset
-		call filter(l:list, 0)
-		let s:yankedtick += a:doyanked && type(a:list) != v:t_list
-		let b:fm_markedtick += !a:doyanked && type(a:list) != v:t_list
-		" Don't notify if path is not found (deleted)
-		silent call s:refreshtree(0)
-	endif
+	let s:yankedtick += len(s:yanked) != len(s:filterexisting(s:yanked))
+	let b:fm_markedtick += len(b:fm_marked) != len(s:filterexisting(b:fm_marked))
+	" Don't notify if path is not found (deleted)
+	silent call s:refreshtree(0)
 endfun  " }}}
 
 
 fun! s:deletelist(list, flag)  " {{{
-	let l:reset = 0
 	" For directories: sort without s:sortfunc here: children first
 	for l:path in empty(a:flag) ? a:list : reverse(sort(a:list))
 		if delete(l:path, a:flag)
 			echohl ErrorMsg
 			echomsg 'Failed to delete "'.l:path.'"'
 			echohl None
-		elseif !l:reset
-			let l:reset = 1
 		endif
 	endfor
-	return l:reset
 endfun  " }}}
 
 
@@ -1850,12 +1846,7 @@ endfun  " }}}
 
 
 fun! s:renamebylist(listfrom, listto)  " {{{
-	let l:wildignorecasesave = &wildignorecase
-	let l:fileignorecasesave = &fileignorecase
-	set nowildignorecase nofileignorecase
-	let l:existing = filter(copy(a:listto), '!empty(glob(escape(fnameescape(v:val), "~"), 1, 0, 1))')
-	let &wildignorecase = l:wildignorecasesave
-	let &fileignorecase = l:fileignorecasesave
+	let l:existing = s:filterexisting(copy(a:listto))
 	if !empty(l:existing)
 		echo 'Destinations already exist:'
 		echo ' '.join(l:existing, "\n ")
@@ -1866,8 +1857,6 @@ fun! s:renamebylist(listfrom, listto)  " {{{
 	endif
 
 	let l:success = 0
-	let l:unmark = 0
-	let l:unyank = 0
 	for l:i in range(len(a:listfrom))
 		if a:listfrom[l:i][-1:-1] == '/'
 			echo 'Directory "'.a:listfrom[l:i][:-2].'" is empty'
@@ -1878,14 +1867,6 @@ fun! s:renamebylist(listfrom, listto)  " {{{
 			continue
 		endif
 		let l:success = 1
-		if !l:unmark
-			let l:unmark += index(b:fm_marked, a:listfrom[l:i]) != -1
-			let l:unmark += index(b:fm_marked, a:listto[l:i]) != -1
-		endif
-		if !l:unyank
-			let l:unyank += index(s:yanked, a:listfrom[l:i]) != -1
-			let l:unyank += index(s:yanked, a:listto[l:i]) != -1
-		endif
 		if isdirectory(a:listto[l:i])
 			" \= is simpler than doing all the escape() and hope
 			let l:subwith = a:listto[l:i].'/'
@@ -1894,14 +1875,8 @@ fun! s:renamebylist(listfrom, listto)  " {{{
 		endif
 	endfor
 
-	if l:unmark
-		let b:fm_markedtick += 1
-		call filter(b:fm_marked, 0)
-	endif
-	if l:unyank
-		let s:yankedtick += 1
-		call filter(s:yanked, 0)
-	endif
+	let s:yankedtick += len(s:yanked) != len(s:filterexisting(s:yanked))
+	let b:fm_markedtick += len(b:fm_marked) != len(s:filterexisting(b:fm_marked))
 	return !l:success
 endfun  " }}}
 
@@ -1939,41 +1914,19 @@ fun! s:processcmdline()  " {{{
 		return getcmdline()
 	endif
 
-	if s:resetmarkedonsuccess
-		" Should refresh tree only after resetting everything
-		au! filemanager ShellCmdPost <buffer>
-	endif
-	if getcmdline() =~# '<yanked>'
-		if s:resetmarkedonsuccess
-			au filemanager ShellCmdPost <buffer> ++once
-			\ if !v:shell_error | call filter(s:yanked, 0) | let s:yankedtick += 1 | endif
-		endif
-		let l:yankedsh = empty(s:yanked) ? '' :
-		    \ join(map(copy(s:yanked), 'shellescape(v:val, 1)'), ' ')
-	else
-		let l:yankedsh = ''
-	endif
+	" Should refresh tree only after resetting everything
+	au! filemanager ShellCmdPost <buffer>
+	au filemanager ShellCmdPost  <buffer> ++once
+	   \ let s:yankedtick += len(s:yanked) != len(s:filterexisting(s:yanked))
+	   \ | let b:fm_markedtick += len(b:fm_marked) != len(s:filterexisting(b:fm_marked))
+	" Also restores this autocmd from s:definemapcmdautocmd()
+	au filemanager ShellCmdPost  <buffer>  call s:refreshtree(-1)
 
-	if getcmdline() =~# '<marked>'
-		if s:resetmarkedonsuccess
-			au filemanager ShellCmdPost <buffer> ++once
-			\ if !v:shell_error | call filter(b:fm_marked, 0) | let b:fm_markedtick += 1 | endif
-		endif
-		let l:markedsh = empty(b:fm_marked) ? '' :
-		    \ join(map(copy(b:fm_marked), 'shellescape(v:val, 1)'), ' ')
-	else
-		let l:markedsh = ''
-	endif
-
-	if getcmdline() =~# '<cursor>'
-		let l:cfile = shellescape(s:undercursor(0), 1)
-	else
-		let l:cfile = ''
-	endif
-	if s:resetmarkedonsuccess
-		" Also restores this autocmd from s:initialize()
-		au filemanager ShellCmdPost  <buffer>  call s:refreshtree(-1)
-	endif
+	let l:yankedsh = getcmdline() !~# '<yanked>' || empty(s:yanked) ? '' :
+	                 \ join(map(copy(s:yanked), 'shellescape(v:val, 1)'), ' ')
+	let l:markedsh = getcmdline() !~# '<marked>' || empty(b:fm_marked) ? '' :
+	                 \ join(map(copy(b:fm_marked), 'shellescape(v:val, 1)'), ' ')
+	let l:cfile = getcmdline() !~# '<cursor>' ? '' : shellescape(s:undercursor(0), 1)
 
 	" Save current un-expanded cmdline to history and delete the expanded
 	" version after hitting enter. CmdlineLeave is triggered before
