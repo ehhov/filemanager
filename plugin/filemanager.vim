@@ -684,17 +684,17 @@ fun! s:refreshcontents(dic, path, force)  " {{{
 endfun  " }}}
 
 
-fun! s:refreshtree(force)  " {{{
+fun! s:refreshtree(force, dontmove=0)  " {{{
 	let l:refreshed = s:refreshcontents(b:fm_tree, b:fm_treeroot, a:force > 0)
 	if l:refreshed[0] == 0
 		if a:force < 0 || b:fm_yankedticksave < s:yankedtick
 		   \ || b:fm_markedticksave < b:fm_markedtick
-			call s:printtree(1, s:undercursor(1), 0)
+			call s:printtree(1, (a:dontmove ? '' : s:undercursor(1)), 0)
 		endif
 		return
 	endif
 	" simplify() required only after renaming by tree
-	let l:path = s:simplify(s:undercursor(1))
+	let l:path = a:dontmove ? '' : s:simplify(s:undercursor(1))
 	let b:fm_tree = l:refreshed[1]
 	call s:printtree(1, (l:path[:len(b:fm_treeroot)-1] ==# b:fm_treeroot ? l:path : ''), 0)
 endfun  " }}}
@@ -1841,7 +1841,7 @@ fun! s:renamefinish(do)  " {{{
 	unlet b:fm_renamefrom
 	setl nomodifiable readonly undolevels=-1
 	call s:definemapcmdautocmd()
-	call s:refreshtree(-1)
+	call s:refreshtree(-1, a:do != 1)
 endfun  " }}}
 
 
