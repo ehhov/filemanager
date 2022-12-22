@@ -1805,7 +1805,7 @@ fun! s:renametree(tree=0)  " {{{
 	let b:fm_renamefrom = getline(3, '$')
 	call s:setbufname()
 
-	au! filemanager BufEnter,ShellCmdPost <buffer>
+	au! filemanager BufEnter,ShellCmdPost,BufWriteCmd <buffer>
 	delcommand -buffer Mark
 	delcommand -buffer Yank
 	delcommand -buffer Filter
@@ -1818,6 +1818,7 @@ fun! s:renametree(tree=0)  " {{{
 	nnoremap <buffer>  <cr>   <cmd>call <sid>renamefinish(1)<cr>
 	inoremap <buffer>  <cr>   <esc><cmd>call <sid>renamefinish(1)<cr>
 	nnoremap <buffer>  <esc>  <cmd>call <sid>renamefinish(0)<cr>
+	au filemanager BufWriteCmd  <buffer>  call s:renamefinish(1)
 	setl undolevels=-123456  " based on :help 'undolevels'
 endfun  " }}}
 
@@ -2095,6 +2096,7 @@ fun! s:definemapcmdautocmd()  " {{{
 	" BufReadCmd needed for when the user runs :edit to reload the buffer
 	au! filemanager * <buffer>
 	au filemanager BufReadCmd    <buffer>  call s:initialize(b:fm_treeroot, b:fm_auxiliary)
+	au filemanager BufWriteCmd   <buffer>  echo 'Writing only available during tree rename'
 	au filemanager BufEnter      <buffer>  call s:refreshtree(0)
 	au filemanager BufUnload     <buffer>  call s:exit(str2nr(expand('<abuf>')))
 	au filemanager CmdlineEnter  <buffer>  call s:cmdlineenter(expand('<afile>'))
@@ -2104,7 +2106,7 @@ endfun  " }}}
 
 fun! s:initialize(path, aux)  " {{{
 	" nofile is necessary for independent views of the same directory
-	setl bufhidden=wipe buftype=nofile noswapfile
+	setl bufhidden=wipe buftype=acwrite noswapfile
 	setl nomodifiable readonly undolevels=-1
 	setl nonumber nowrap nofoldenable
 	setl conceallevel=3 concealcursor=nc
