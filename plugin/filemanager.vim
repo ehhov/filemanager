@@ -1914,7 +1914,7 @@ fun! s:processcmdline()  " {{{
 		return getcmdline()
 	endif
 
-	" Should refresh tree only after resetting everything
+	" Should refresh tree only after filtering marked and yanked
 	au! filemanager ShellCmdPost <buffer>
 	au filemanager ShellCmdPost  <buffer> ++once
 	   \ let s:yankedtick += len(s:yanked) != len(s:filterexisting(s:yanked))
@@ -1927,15 +1927,6 @@ fun! s:processcmdline()  " {{{
 	let l:markedsh = getcmdline() !~# '<marked>' || empty(b:fm_marked) ? '' :
 	                 \ join(map(copy(b:fm_marked), 'shellescape(v:val, 1)'), ' ')
 	let l:cfile = getcmdline() !~# '<cursor>' ? '' : shellescape(s:undercursor(0), 1)
-
-	" Save current un-expanded cmdline to history and delete the expanded
-	" version after hitting enter. CmdlineLeave is triggered before
-	" leaving, so delete on ShellCmdPost as a workaround.
-	" Delete only when the cmdline actually contains '!'.
-	call histadd(':', getcmdline())
-	if getcmdline() =~# '\(^\|[^\\]\)!'
-		au filemanager ShellCmdPost  <buffer>  ++once call histdel(':', -1)
-	endif
 
 	let l:split = split(getcmdline(), '<less>', 1)
 	call map(l:split, 'split(v:val, "<marked>", 1)')
@@ -1950,7 +1941,13 @@ fun! s:processcmdline()  " {{{
 		call map(l:listI, 'join(v:val, l:yankedsh)')
 	endfor
 	call map(l:split, 'join(v:val, l:markedsh)')
-	return join(l:split, '<')
+	let l:expanded = join(l:split, '<')
+
+	call histadd(':', getcmdline())
+	exe 'au filemanager ShellCmdPost  <buffer>  ++once '
+	    \.'eval histget(":", -1) ==# '.string(l:expanded).' && histdel(":", -1)'
+
+	return l:expanded
 endfun  " }}}
 
 
