@@ -350,7 +350,7 @@ fun! s:setbufname()  " {{{
 	" Buffer number required for uniqueness
 	let l:str = '[filemanager:'.bufnr().(b:fm_auxiliary ? ':AUX' : '')
 	let l:str .= (exists('b:fm_renamefrom') ? ':RENAME' : '').']'
-	silent exe 'file '.fnameescape(l:str.' '.b:fm_treeroot)
+	silent exe 'keepalt file '.fnameescape(l:str.' '.b:fm_treeroot)
 endfun  " }}}
 
 
