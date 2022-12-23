@@ -121,7 +121,7 @@ Further functionality is best presented by mappings and commands themselves:
   zC                    -- recursively, up to the tree root
   zm                    decrease maximum unfolded depth by 1 (accepts count)
   zM                    leave only the tree root unfolded
-  zo                    another way to unfold directory under the cursor
+  zo                    unfold directory recursively (accepts count)
   c                     change to directory under the cursor and prompt shell command
   x                     open item in external program (xdg-open by default)
   X                     open item in external program by name

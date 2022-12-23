@@ -500,78 +500,72 @@ fun! s:movetreecontents(from, to)  " {{{
 endfun  " }}}
 
 
-fun! s:toggledir(path, operation, dontprint=0)  " {{{
-	" operation: 0 = toggle, 1 = fold, 2 = unfold
-	if a:operation == 0 && line('.') == 1
-		call s:parentdir()
-		return 0
-	elseif a:operation == 0 && line('.') == 2
-		call s:refreshtree(1)
-		return 0
-	endif
-
-	let l:list = split(a:path[len(b:fm_treeroot):], '/')
-
-	if a:operation != 2 && empty(l:list)
-		echo 'Cannot fold the whole tree'
-		return 1
-	endif
-
+fun! s:subtreebypath(path)  " {{{
 	let l:dic = b:fm_tree
-	for l:name in l:list
+	for l:name in split(a:path[len(b:fm_treeroot):], '/')
 		let l:dic = get(l:dic, l:name, 0)
 		if type(l:dic) != v:t_dict
-			echo '"'.a:path.'" is not a directory'
-			return 1
+			return 0
 		endif
 	endfor
+	return l:dic
+endfun  " }}}
 
+
+fun! s:toggledir(path)  " {{{
+	let l:dic = s:subtreebypath(a:path)
+	if type(l:dic) != v:t_dict
+		echo '"'.a:path.'" is not a directory'
+		return
+	endif
 	if empty(l:dic)
-		if a:operation == 1
-			" Currently unreachable (see s:folddir())
-			echo 'Already folded'
-			return 1
-		endif
 		call extend(l:dic, s:getdircontents(a:path))
 	else
-		if a:operation == 2
-			echo 'Nothing to unfold'
-			return 1
-		endif
 		call filter(l:dic, 0)
 	endif
-
-	if !a:dontprint
-		call s:printtree(1)
-	endif
-	return 0
+	call s:printtree(1)
 endfun  " }}}
 
 
 fun! s:folddir(path, recursively)  " {{{
 	if a:recursively
-		let l:path = split(a:path[len(b:fm_treeroot):], '/')
-		if len(l:path) < 2
-			let l:path = b:fm_treeroot
-		else
-			let l:path = b:fm_treeroot.l:path[0]
-		endif
+		let l:path = split(a:path[len(b:fm_treeroot):], '/', 1)
+		let l:path = len(l:path) < 2 ? b:fm_treeroot : b:fm_treeroot.l:path[0]
 	else
 		let l:path = fnamemodify(a:path, ':h')
 	endif
-	if !s:toggledir(l:path, 1)
-		call s:movecursorbypath(l:path)
+	if len(l:path) <= len(b:fm_treeroot)
+		echo 'Cannot fold the whole tree'
+		return
+	endif
+	let l:dic = s:subtreebypath(l:path)
+	if type(l:dic) != v:t_dict
+		echo '"'.l:path.'" is not a directory'
+	elseif empty(l:dic)
+		echo 'Already folded'
+	else
+		call filter(l:dic, 0)
+		call s:printtree(1, l:path, 1)
+	endif
+endfun  " }}}
+
+
+fun! s:unfoldiffolded(path)  " {{{
+	let l:dic = s:subtreebypath(a:path)
+	if type(l:dic) != v:t_dict
+		echo '"'.a:path.'" is not a directory'
+		return
+	endif
+	if empty(l:dic)
+		call extend(l:dic, s:getdircontents(a:path))
 	endif
 endfun  " }}}
 
 
 fun! s:foldcontentsbydepth(tree, depth, limit)  " {{{
-	if a:depth > a:limit
-		return filter(a:tree, 0)
-	endif
-	for l:dic in filter(values(a:tree), 'type(v:val) == v:t_dict && !empty(v:val)')
-		call s:foldcontentsbydepth(l:dic, a:depth+1, a:limit)
-	endfor
+	return a:depth > a:limit ? filter(a:tree, 0) :
+	       \map(a:tree, 'type(v:val) == v:t_dict && !empty(v:val) ? '
+	                    \.'s:foldcontentsbydepth(v:val, a:depth+1, a:limit) : v:val')
 endfun  " }}}
 
 
@@ -585,6 +579,27 @@ fun! s:foldbydepth(decrease)  " {{{
 	let l:path = b:fm_treeroot.join(l:path[:l:limit-1], '/')
 	call s:foldcontentsbydepth(b:fm_tree, 1, l:limit)
 	call s:printtree(1, l:path, 0)
+endfun  " }}}
+
+
+fun! s:unfoldcontentsrecursively(dic, path, depth)  " {{{
+	if empty(a:dic)
+		call extend(a:dic, s:getdircontents(a:path))
+	endif
+	return !a:depth ? a:dic : map(a:dic, 'type(v:val) == v:t_dict ? '
+	       \.'s:unfoldcontentsrecursively(v:val, a:path.v:key."/", a:depth-1) : v:val')
+endfun  " }}}
+
+
+fun! s:unfolddirrecursively(depth)  " {{{
+	let l:path = s:undercursor(0, line('.') > 2 ? line('.') : 2)
+	let l:dic = s:subtreebypath(l:path)
+	if type(l:dic) != v:t_dict
+		echo '"'.l:path.'" is not a directory'
+		return
+	endif
+	call s:unfoldcontentsrecursively(l:dic, substitute(l:path, '/$', '', '').'/', a:depth-1)
+	call s:printtree(1)
 endfun  " }}}
 
 
@@ -942,7 +957,7 @@ fun! s:bookmarkrestore(name)  " {{{
 	let b:fm_markedtick += 1
 	let b:fm_tree = s:getdircontents(b:fm_treeroot)
 	for l:path in l:bookmark[index(s:bookmarkvars, 'opendirs')]
-		call s:toggledir(b:fm_treeroot.l:path, 2, 1)
+		call s:unfoldiffolded(b:fm_treeroot.l:path)
 	endfor
 	call s:printtree(0, l:bookmark[index(s:bookmarkvars, 'cursor')], 1)
 	let b:fm_changedticksave = b:changedtick
@@ -1198,7 +1213,7 @@ fun! s:newdir()  " {{{
 	let b:fm_tree = s:refreshcontents(b:fm_tree, b:fm_treeroot, 0)[1]
 	for l:dirstep in split(l:name[len(b:fm_treeroot):], '/')
 		" Don't notify if already open
-		silent call s:toggledir(l:dirpath.l:dirstep, 2, 1)
+		silent call s:unfoldiffolded(l:dirpath.l:dirstep)
 		let l:dirpath .= l:dirstep.'/'
 	endfor
 	call s:printtree(1, l:dirpath, 0)
@@ -1278,8 +1293,12 @@ endfun  " }}}
 
 fun! s:open(path, mode)  " {{{
 	if isdirectory(a:path)
-		if a:mode == 0
-			return s:toggledir(a:path, 0)
+		if a:mode == 0 && line('.') == 1
+			return s:parentdir()
+		elseif a:mode == 0 && line('.') == 2
+			return s:refreshtree(1)
+		elseif a:mode == 0
+			return s:toggledir(a:path)
 		elseif a:mode == -1
 			return s:descenddir(a:path, 0)
 		elseif a:mode != 4  " allow opening in a new tab
@@ -2036,7 +2055,7 @@ fun! s:definemapcmdautocmd()  " {{{
 	nnoremap <nowait> <buffer>  zC       <cmd>call <sid>folddir(<sid>undercursor(1), 1)<cr>
 	nnoremap <nowait> <buffer>  zm       <cmd>call <sid>foldbydepth(v:count1)<cr>
 	nnoremap <nowait> <buffer>  zM       <cmd>call <sid>foldbydepth(-1)<cr>
-	nnoremap <nowait> <buffer>  zo       <cmd>call <sid>toggledir(<sid>undercursor(1), 2)<cr>
+	nnoremap <nowait> <buffer>  zo       <cmd>call <sid>unfolddirrecursively(v:count1)<cr>
 	nnoremap <nowait> <buffer>  c        <cmd>call <sid>cmdundercursor()<cr>
 	nnoremap <nowait> <buffer>  x        <cmd>call <sid>openexternal(<sid>undercursor(1))<cr>
 	nnoremap <nowait> <buffer>  X        <cmd>call <sid>openbyname(1)<cr>
