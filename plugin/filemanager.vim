@@ -500,7 +500,7 @@ fun! s:movetreecontents(from, to)  " {{{
 endfun  " }}}
 
 
-fun! s:subtreebypath(path)  " {{{
+fun! s:getsubtree(path)  " {{{
 	let l:dic = b:fm_tree
 	for l:name in split(a:path[len(b:fm_treeroot):], '/')
 		let l:dic = get(l:dic, l:name, 0)
@@ -513,7 +513,7 @@ endfun  " }}}
 
 
 fun! s:toggledir(path)  " {{{
-	let l:dic = s:subtreebypath(a:path)
+	let l:dic = s:getsubtree(a:path)
 	if type(l:dic) != v:t_dict
 		echo '"'.a:path.'" is not a directory'
 		return
@@ -538,7 +538,7 @@ fun! s:folddir(path, recursively)  " {{{
 		echo 'Cannot fold the whole tree'
 		return
 	endif
-	let l:dic = s:subtreebypath(l:path)
+	let l:dic = s:getsubtree(l:path)
 	if type(l:dic) != v:t_dict
 		echo '"'.l:path.'" is not a directory'
 	elseif empty(l:dic)
@@ -551,7 +551,7 @@ endfun  " }}}
 
 
 fun! s:unfoldiffolded(path)  " {{{
-	let l:dic = s:subtreebypath(a:path)
+	let l:dic = s:getsubtree(a:path)
 	if type(l:dic) != v:t_dict
 		echo '"'.a:path.'" is not a directory'
 		return
@@ -593,7 +593,7 @@ endfun  " }}}
 
 fun! s:unfolddirrecursively(depth)  " {{{
 	let l:path = s:undercursor(0, line('.') > 2 ? line('.') : 2)
-	let l:dic = s:subtreebypath(l:path)
+	let l:dic = s:getsubtree(l:path)
 	if type(l:dic) != v:t_dict
 		echo '"'.l:path.'" is not a directory'
 		return
@@ -613,39 +613,26 @@ fun! s:descenddir(path, onlyone)  " {{{
 		echo 'Directory out of reach: "'.a:path.'"'
 		return
 	endif
-	let l:list = split(a:path[len(b:fm_treeroot):], '/')
-	if !isdirectory(a:path) && !empty(l:list)
-		call remove(l:list, -1)
-	endif
-	if empty(l:list)
+
+	let l:path = isdirectory(a:path) ? a:path : fnamemodify(a:path, ':h')
+	let l:path = l:path[len(b:fm_treeroot):]
+	if empty(l:path)
 		echo 'Nowhere to descend'
 		return
 	endif
-	if a:onlyone
-		call filter(l:list, 'v:key == 0')
-	endif
+	let l:path = a:onlyone ? split(l:path, '/')[0] : l:path
+	let l:depthchange = a:onlyone ? 1 : len(split(l:path, '/'))
 
-	let l:setcol = 1
-	for l:name in l:list
-		" Happens when s:openbyname() a deep not visible directory
-		if !has_key(b:fm_tree, l:name)
-			let b:fm_tree = s:getdircontents(a:path)
-			let l:setcol = 0
-			break
-		endif
-		let b:fm_tree = b:fm_tree[l:name]
-	endfor
-	let b:fm_treeroot = b:fm_treeroot.join(l:list, '/').'/'
-	if empty(b:fm_tree)
-		let b:fm_tree = s:getdircontents(b:fm_treeroot)
-	endif
+	let b:fm_tree = s:getsubtree(b:fm_treeroot.l:path)
+	let l:setcol = type(b:fm_tree) == v:t_dict && !empty(b:fm_tree)
+	let b:fm_treeroot = b:fm_treeroot.l:path.'/'
+	let b:fm_tree = l:setcol ? b:fm_tree : s:getdircontents(b:fm_treeroot)
 
-	let l:winview = winsaveview()
+	let l:winview = l:setcol ? filter(winsaveview(), 'v:key[0] == "c"') : 0
 	call s:printtree(0)
 	if !s:movecursorbypath(a:path) && l:setcol
-		call filter(l:winview, 'v:key == "col" || v:key == "coladd" || v:key == "curswant"')
-		let l:winview['col'] -= len(s:depthstr) * len(l:list)
-		let l:winview['curswant'] -= len(s:depthstr) * len(l:list)
+		let l:winview['col'] -= len(s:depthstr) * l:depthchange
+		let l:winview['curswant'] -= len(s:depthstr) * l:depthchange
 		call winrestview(l:winview)
 	elseif line('.') == 1  " path was not found
 		call cursor(2, 1)
@@ -668,10 +655,9 @@ fun! s:parentdir()  " {{{
 	if type(get(b:fm_tree, l:oldrootname, 0)) == v:t_dict
 		let b:fm_tree[l:oldrootname] = l:oldtree
 	endif
-	let l:winview = winsaveview()
+	let l:winview = l:setcol ? filter(winsaveview(), 'v:key[0] == "c"') : 0
 	call s:printtree(0)
 	if !s:movecursorbypath(l:path) && l:setcol
-		call filter(l:winview, 'v:key == "col" || v:key == "coladd" || v:key == "curswant"')
 		let l:winview['col'] += len(s:depthstr)
 		let l:winview['curswant'] += len(s:depthstr)
 		call winrestview(l:winview)
@@ -2057,10 +2043,10 @@ fun! s:definemapcmdautocmd()  " {{{
 	nnoremap <nowait> <buffer>  E        <cmd>call <sid>open(<sid>undercursor(1), 7)<cr>
 	nnoremap <nowait> <buffer>  T        <cmd>call <sid>openterminal(0)<cr>
 	nnoremap <nowait> <buffer>  U        <cmd>call <sid>openterminal(1)<cr>
-	nnoremap <nowait> <buffer>  l        <cmd>call <sid>descenddir(<sid>undercursor(1), 1)<cr>
-	nnoremap <nowait> <buffer>  <right>  <cmd>call <sid>descenddir(<sid>undercursor(1), 1)<cr>
-	nnoremap <nowait> <buffer>  gl       <cmd>call <sid>descenddir(<sid>undercursor(1), 0)<cr>
-	nnoremap <nowait> <buffer> <s-right> <cmd>call <sid>descenddir(<sid>undercursor(1), 0)<cr>
+	nnoremap <nowait> <buffer>  l        <cmd>call <sid>descenddir(<sid>undercursor(0), 1)<cr>
+	nnoremap <nowait> <buffer>  <right>  <cmd>call <sid>descenddir(<sid>undercursor(0), 1)<cr>
+	nnoremap <nowait> <buffer>  gl       <cmd>call <sid>descenddir(<sid>undercursor(0), 0)<cr>
+	nnoremap <nowait> <buffer> <s-right> <cmd>call <sid>descenddir(<sid>undercursor(0), 0)<cr>
 	nnoremap <nowait> <buffer>  h        <cmd>call <sid>parentdir()<cr>
 	nnoremap <nowait> <buffer>  <left>   <cmd>call <sid>parentdir()<cr>
 	nnoremap <nowait> <buffer>  zc       <cmd>call <sid>folddir(<sid>undercursor(1), 0)<cr>
