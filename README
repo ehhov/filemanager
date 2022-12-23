@@ -208,8 +208,7 @@ default values:
                                           '': obey 'ignorecase', '\c': ignore, '\C': don't ignore
  g:filemanager_sortmethod = 'name'        Default sort method: only 'name' or 'time' (S mapping)
  g:filemanager_newestfirst = 1            Place newest first by default when sorting by time
- g:filemanager_sortorder = '*/,*,.*/,.*,^__pycache__/$,\.bak$,\.swp$,\~$'
-                                          Pattern order for sorting by name (gS mapping)
+ g:filemanager_sortorder = '*/,*,.*/,.*'  Pattern order for sorting by name (gS mapping)
  g:filemanager_sortrules = {}             Rules for custom sorting based on directory path:
                                           last parts of full path are matched against keys;
                                           values are 'name:sortorder', 'obey:sortorder',
