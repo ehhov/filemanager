@@ -717,168 +717,6 @@ fun! s:refreshtree(force, dontmove=0)  " {{{
 	let b:fm_tree = l:refreshed[1]
 	call s:printtree(1, (l:path[:len(b:fm_treeroot)-1] ==# b:fm_treeroot ? l:path : ''), 0)
 endfun  " }}}
-
-
-fun! s:toggleshowhidden()  " {{{
-	let b:fm_showhidden = !b:fm_showhidden
-	call s:refreshtree(1)
-	echo 'Show hidden '.(b:fm_showhidden ? 'ON' : 'OFF')
-endfun  " }}}
-
-
-fun! s:togglerespectgitignore()  " {{{
-	let b:fm_respectgitignore = !b:fm_respectgitignore
-	call s:refreshtree(1)
-	echo 'Respect .gitignore '.(b:fm_respectgitignore ? 'ON' : 'OFF')
-endfun  " }}}
-
-
-fun! s:setignorecase()  " {{{
-	let l:choice = confirm("Configure ignore case in Filter, Mark, and Yank:",
-	                      \"&Obey 'ignorecase'\n&Ignore\n&Don't ignore")
-	if l:choice == 0
-		return
-	endif
-	let b:fm_ignorecase = ['', '\c', '\C'][l:choice-1]
-	call s:printtree(1, s:undercursor(1), 0)
-endfun  " }}}
-
-
-fun! s:setskipfilterdirs()  " {{{
-	let b:fm_skipfilterdirs = b:fm_skipfilterdirs == 0 && v:count == 0 ? 1 : v:count
-	call s:printtree(1, s:undercursor(1), 1)
-	echo !b:fm_skipfilterdirs ? 'Directories not immune to filters'
-	     \: 'Directories up to depth '.b:fm_skipfilterdirs.' immune to filters'
-endfun  " }}}
-
-
-fun! s:togglesortreverse()  " {{{
-	let b:fm_sortreverse = !b:fm_sortreverse
-	call s:printtree(1, s:undercursor(1), 0)
-	echo 'Reverse sort order '.(b:fm_sortreverse ? 'ON' : 'OFF')
-endfun  " }}}
-
-
-fun! s:toggleusesortrules()  " {{{
-	let b:fm_usesortrules = !b:fm_usesortrules
-	call s:printtree(1, s:undercursor(1), 0)
-	echo 'Using sort rules '.(b:fm_usesortrules ? 'ON' : 'OFF')
-endfun  " }}}
-
-
-fun! s:setsortmethod()  " {{{
-	let l:choice = confirm("Set sort method:", "By &name\nBy &time")
-	if l:choice == 0
-		return
-	endif
-	let b:fm_sortmethod = ['name', 'time'][l:choice-1]
-	call s:printtree(1, s:undercursor(1), 0)
-endfun  " }}}
-
-
-fun! s:setsortorder()  " {{{
-	call inputsave()
-	echo 'Current sort order:  "'.b:fm_sortorder.'"'
-	let l:sortorder = input('Enter new sort order: ', b:fm_sortorder)
-	call inputrestore()
-	redraw
-	if l:sortorder == ''
-		echo 'Empty string supplied. Default sort order set'
-		let l:sortorder = s:sortorder
-	endif
-	let b:fm_sortorder = s:checksortorder(l:sortorder)
-	call s:printtree(1, s:undercursor(1), 0)
-endfun  " }}}
-
-
-fun! s:checksortorder(sortorder)  " {{{
-	let l:validsortorder = []
-	for l:pat in split(a:sortorder, '[^\\]\zs,')
-		if l:pat == '*'|| l:pat == '*/' || l:pat == '.*' || l:pat == '.*/'
-		   \|| !s:checkregex(substitute(l:pat, '\\,', ',', 'g'))
-			call add(l:validsortorder, l:pat)
-		endif
-	endfor
-	return join(l:validsortorder, ',')
-endfun  " }}}
-
-
-fun! s:checkregex(pattern)  " {{{
-	try
-		call match('', a:pattern)
-	catch /^Vim\%((\a\+)\)\?:/
-		echohl ErrorMsg
-		echomsg 'Invalid regex "'.a:pattern.'". '.substitute(v:exception, '^Vim\%((\a\+)\)\?:', '', '')
-		echohl None
-		return 1
-	endtry
-	return 0
-endfun  " }}}
-
-
-fun! s:checkglob(pattern)  " {{{
-	try
-		call glob2regpat(a:pattern)
-	catch /^Vim\%((\a\+)\)\?:/
-		echohl ErrorMsg
-		echomsg 'Invalid glob "'.a:pattern.'". '.substitute(v:exception, '^Vim\%((\a\+)\)\?:', '', '')
-		echohl None
-		return 1
-	endtry
-	return 0
-endfun  " }}}
-
-
-fun! s:convertpattern(pat, glob)  " {{{
-	let l:pat = a:glob ? glob2regpat(a:pat) : a:pat
-	let l:pat = l:pat[0] == '^' && l:pat[1] != '/' ? '/'.l:pat[1:] : l:pat
-	if a:glob
-		" Conversion tricks that make sense only together
-		let l:pat = substitute(l:pat, '\(^\|/\)\.\*', '/[^/\\.][^/]*', 'g')
-		let l:pat = substitute(l:pat, '\(^\|/\)\.', '/[^/\\.]', 'g')
-		let l:pat = substitute(l:pat, '\.\*', '[^/]*', 'g')
-		let l:pat = substitute(l:pat, '\(^\|[^\\]\)\zs\.', '[^/]', 'g')
-	endif
-	let l:pat = l:pat[-1:-1] == '$' ? l:pat : l:pat.'[^/]*$'
-	return substitute(l:pat, '//\+', '/', 'g')
-endfun  " }}}
-
-
-fun! s:filtercmd(pattern, bang, glob)  " {{{
-	if a:pattern == ''
-		if empty(b:fm_filters)
-			echo 'No filters applied'
-			return
-		endif
-		if a:bang
-			call filter(b:fm_filters, 0)
-		else
-			call remove(b:fm_filters, -1)
-		endif
-	else
-		if a:glob ? s:checkglob(a:pattern) : s:checkregex(a:pattern)
-			return
-		endif
-		call add(b:fm_filters, (a:bang ? '!' : ' ').s:convertpattern(a:pattern, a:glob))
-	endif
-
-	let l:path = s:undercursor(1)
-	call s:printtree(0)
-	silent eval s:movecursorbypath(l:path) && cursor(2, 1)
-	if empty(b:fm_filters)
-		echo 'All filters removed'
-	endif
-endfun  " }}}
-
-
-fun! s:printfilters()  " {{{
-	if empty(b:fm_filters)
-		echo 'No filters applied'
-	else
-		echo 'Filters applied:'
-		echo ' '.join(b:fm_filters, "\n ")
-	endif
-endfun  " }}}
 " }}}
 
 
@@ -1172,6 +1010,221 @@ endfun  " }}}
 " }}}
 
 
+" Buffer configuration {{{
+fun! s:convertpattern(pat, glob)  " {{{
+	let l:pat = a:glob ? glob2regpat(a:pat) : a:pat
+	let l:pat = l:pat[0] == '^' && l:pat[1] != '/' ? '/'.l:pat[1:] : l:pat
+	if a:glob
+		" Conversion tricks that make sense only together
+		let l:pat = substitute(l:pat, '\(^\|/\)\.\*', '/[^/\\.][^/]*', 'g')
+		let l:pat = substitute(l:pat, '\(^\|/\)\.', '/[^/\\.]', 'g')
+		let l:pat = substitute(l:pat, '\.\*', '[^/]*', 'g')
+		let l:pat = substitute(l:pat, '\(^\|[^\\]\)\zs\.', '[^/]', 'g')
+	endif
+	let l:pat = l:pat[-1:-1] == '$' ? l:pat : l:pat.'[^/]*$'
+	return substitute(l:pat, '//\+', '/', 'g')
+endfun  " }}}
+
+
+fun! s:checkregex(pattern)  " {{{
+	try
+		call match('', a:pattern)
+	catch /^Vim\%((\a\+)\)\?:/
+		echohl ErrorMsg
+		echomsg 'Invalid regex "'.a:pattern.'". '.substitute(v:exception, '^Vim\%((\a\+)\)\?:', '', '')
+		echohl None
+		return 1
+	endtry
+	return 0
+endfun  " }}}
+
+
+fun! s:checkglob(pattern)  " {{{
+	try
+		call glob2regpat(a:pattern)
+	catch /^Vim\%((\a\+)\)\?:/
+		echohl ErrorMsg
+		echomsg 'Invalid glob "'.a:pattern.'". '.substitute(v:exception, '^Vim\%((\a\+)\)\?:', '', '')
+		echohl None
+		return 1
+	endtry
+	return 0
+endfun  " }}}
+
+
+fun! s:checksortorder(sortorder)  " {{{
+	let l:validsortorder = []
+	for l:pat in split(a:sortorder, '[^\\]\zs,')
+		if l:pat == '*'|| l:pat == '*/' || l:pat == '.*' || l:pat == '.*/'
+		   \|| !s:checkregex(substitute(l:pat, '\\,', ',', 'g'))
+			call add(l:validsortorder, l:pat)
+		endif
+	endfor
+	return join(l:validsortorder, ',')
+endfun  " }}}
+
+
+fun! s:toggleshowhidden()  " {{{
+	let b:fm_showhidden = !b:fm_showhidden
+	call s:refreshtree(1)
+	echo 'Show hidden '.(b:fm_showhidden ? 'ON' : 'OFF')
+endfun  " }}}
+
+
+fun! s:togglerespectgitignore()  " {{{
+	let b:fm_respectgitignore = !b:fm_respectgitignore
+	call s:refreshtree(1)
+	echo 'Respect .gitignore '.(b:fm_respectgitignore ? 'ON' : 'OFF')
+endfun  " }}}
+
+
+fun! s:setignorecase()  " {{{
+	let l:choice = confirm("Configure ignore case in Filter, Mark, and Yank:",
+	                      \"&Obey 'ignorecase'\n&Ignore\n&Don't ignore")
+	if l:choice == 0
+		return
+	endif
+	let b:fm_ignorecase = ['', '\c', '\C'][l:choice-1]
+	call s:printtree(1, s:undercursor(1), 0)
+endfun  " }}}
+
+
+fun! s:setskipfilterdirs()  " {{{
+	let b:fm_skipfilterdirs = b:fm_skipfilterdirs == 0 && v:count == 0 ? 1 : v:count
+	call s:printtree(1, s:undercursor(1), 1)
+	echo !b:fm_skipfilterdirs ? 'Directories not immune to filters'
+	     \: 'Directories up to depth '.b:fm_skipfilterdirs.' immune to filters'
+endfun  " }}}
+
+
+fun! s:togglesortreverse()  " {{{
+	let b:fm_sortreverse = !b:fm_sortreverse
+	call s:printtree(1, s:undercursor(1), 0)
+	echo 'Reverse sort order '.(b:fm_sortreverse ? 'ON' : 'OFF')
+endfun  " }}}
+
+
+fun! s:toggleusesortrules()  " {{{
+	let b:fm_usesortrules = !b:fm_usesortrules
+	call s:printtree(1, s:undercursor(1), 0)
+	echo 'Using sort rules '.(b:fm_usesortrules ? 'ON' : 'OFF')
+endfun  " }}}
+
+
+fun! s:setsortmethod()  " {{{
+	let l:choice = confirm("Set sort method:", "By &name\nBy &time")
+	if l:choice == 0
+		return
+	endif
+	let b:fm_sortmethod = ['name', 'time'][l:choice-1]
+	call s:printtree(1, s:undercursor(1), 0)
+endfun  " }}}
+
+
+fun! s:setsortorder()  " {{{
+	call inputsave()
+	echo 'Current sort order:  "'.b:fm_sortorder.'"'
+	let l:sortorder = input('Enter new sort order: ', b:fm_sortorder)
+	call inputrestore()
+	redraw
+	if l:sortorder == ''
+		echo 'Empty string supplied. Default sort order set'
+		let l:sortorder = s:sortorder
+	endif
+	let b:fm_sortorder = s:checksortorder(l:sortorder)
+	call s:printtree(1, s:undercursor(1), 0)
+endfun  " }}}
+
+
+fun! s:filtercmd(pattern, bang, glob)  " {{{
+	if a:pattern == ''
+		if empty(b:fm_filters)
+			echo 'No filters applied'
+			return
+		endif
+		if a:bang
+			call filter(b:fm_filters, 0)
+		else
+			call remove(b:fm_filters, -1)
+		endif
+	else
+		if a:glob ? s:checkglob(a:pattern) : s:checkregex(a:pattern)
+			return
+		endif
+		call add(b:fm_filters, (a:bang ? '!' : ' ').s:convertpattern(a:pattern, a:glob))
+	endif
+
+	let l:path = s:undercursor(1)
+	call s:printtree(0)
+	silent eval s:movecursorbypath(l:path) && cursor(2, 1)
+	if empty(b:fm_filters)
+		echo 'All filters removed'
+	endif
+endfun  " }}}
+
+
+fun! s:printfilters()  " {{{
+	if empty(b:fm_filters)
+		echo 'No filters applied'
+	else
+		echo 'Filters applied:'
+		echo ' '.join(b:fm_filters, "\n ")
+	endif
+endfun  " }}}
+
+
+fun! s:cmdlineenter(char)  " {{{
+	if &autochdir && a:char == ':' && s:dirreadable(b:fm_treeroot)
+		exe 'lcd '.fnameescape(b:fm_treeroot)
+	elseif a:char == ':' && haslocaldir(0) == 1
+		exe (haslocaldir(-1, 0) ? 'tcd ' : 'cd ' ).fnameescape(getcwd(-1, 0))
+	endif
+endfun  " }}}
+
+
+fun! s:processcmdline()  " {{{
+	if getcmdtype() != ':' || getcmdline() !~# '<\(yanked\|marked\|cursor\|less\)>'
+		return getcmdline()
+	endif
+
+	" Should refresh tree only after filtering marked and yanked
+	au! filemanager ShellCmdPost <buffer>
+	au filemanager ShellCmdPost  <buffer> ++once
+	   \ let s:yankedtick += len(s:yanked) != len(s:filterexisting(s:yanked))
+	   \ | let b:fm_markedtick += len(b:fm_marked) != len(s:filterexisting(b:fm_marked))
+	" Also restores this autocmd from s:definemapcmdautocmd()
+	au filemanager ShellCmdPost  <buffer>  call s:refreshtree(-1)
+
+	let l:yankedsh = getcmdline() !~# '<yanked>' || empty(s:yanked) ? '' :
+	                 \ join(map(copy(s:yanked), 'shellescape(v:val, 1)'), ' ')
+	let l:markedsh = getcmdline() !~# '<marked>' || empty(b:fm_marked) ? '' :
+	                 \ join(map(copy(b:fm_marked), 'shellescape(v:val, 1)'), ' ')
+	let l:cfile = getcmdline() !~# '<cursor>' ? '' : shellescape(s:undercursor(0), 1)
+
+	let l:split = split(getcmdline(), '<less>', 1)
+	call map(l:split, 'split(v:val, "<marked>", 1)')
+	" Cannot join here since marked filenames may include <yanked>.
+	" Also avoid potential problems with nested v:val usage in map(map()).
+	for l:listI in l:split
+		call map(l:listI, 'split(v:val, "<yanked>", 1)')
+		for l:listII in l:listI
+			call map(l:listII, 'split(v:val, "<cursor>", 1)')
+			call map(l:listII, 'join(v:val, l:cfile)')
+		endfor
+		call map(l:listI, 'join(v:val, l:yankedsh)')
+	endfor
+	call map(l:split, 'join(v:val, l:markedsh)')
+	let l:expanded = join(l:split, '<')
+
+	call histadd(':', getcmdline())
+	exe 'au filemanager ShellCmdPost  <buffer>  ++once '
+	    \.'eval histget(":", -1) ==# '.string(l:expanded).' && histdel(":", -1)'
+
+	return l:expanded
+endfun  " }}}
+" }}}
+
+
 " File operations {{{
 fun! s:newdir()  " {{{
 	let l:path = fnamemodify(s:undercursor(1, line('.') > 3 ? line('.') : 3), ':h')
@@ -1460,7 +1513,7 @@ endfun  " }}}
 " }}}
 
 
-" Multiple file operations {{{
+" File selection and operations {{{
 fun! s:namematches(tree, relpath, pattern)  " {{{
 	let l:list = []
 	for [l:name, l:contents] in items(a:tree)
@@ -1920,55 +1973,10 @@ endfun  " }}}
 " }}}
 
 
-" Buffer configuration {{{
-fun! s:cmdlineenter(char)  " {{{
-	if &autochdir && a:char == ':' && s:dirreadable(b:fm_treeroot)
-		exe 'lcd '.fnameescape(b:fm_treeroot)
-	elseif a:char == ':' && haslocaldir(0) == 1
-		exe (haslocaldir(-1, 0) ? 'tcd ' : 'cd ' ).fnameescape(getcwd(-1, 0))
-	endif
-endfun  " }}}
-
-
-fun! s:processcmdline()  " {{{
-	if getcmdtype() != ':' || getcmdline() !~# '<\(yanked\|marked\|cursor\|less\)>'
-		return getcmdline()
-	endif
-
-	" Should refresh tree only after filtering marked and yanked
-	au! filemanager ShellCmdPost <buffer>
-	au filemanager ShellCmdPost  <buffer> ++once
-	   \ let s:yankedtick += len(s:yanked) != len(s:filterexisting(s:yanked))
-	   \ | let b:fm_markedtick += len(b:fm_marked) != len(s:filterexisting(b:fm_marked))
-	" Also restores this autocmd from s:definemapcmdautocmd()
-	au filemanager ShellCmdPost  <buffer>  call s:refreshtree(-1)
-
-	let l:yankedsh = getcmdline() !~# '<yanked>' || empty(s:yanked) ? '' :
-	                 \ join(map(copy(s:yanked), 'shellescape(v:val, 1)'), ' ')
-	let l:markedsh = getcmdline() !~# '<marked>' || empty(b:fm_marked) ? '' :
-	                 \ join(map(copy(b:fm_marked), 'shellescape(v:val, 1)'), ' ')
-	let l:cfile = getcmdline() !~# '<cursor>' ? '' : shellescape(s:undercursor(0), 1)
-
-	let l:split = split(getcmdline(), '<less>', 1)
-	call map(l:split, 'split(v:val, "<marked>", 1)')
-	" Cannot join here since marked filenames may include <yanked>.
-	" Also avoid potential problems with nested v:val usage in map(map()).
-	for l:listI in l:split
-		call map(l:listI, 'split(v:val, "<yanked>", 1)')
-		for l:listII in l:listI
-			call map(l:listII, 'split(v:val, "<cursor>", 1)')
-			call map(l:listII, 'join(v:val, l:cfile)')
-		endfor
-		call map(l:listI, 'join(v:val, l:yankedsh)')
-	endfor
-	call map(l:split, 'join(v:val, l:markedsh)')
-	let l:expanded = join(l:split, '<')
-
-	call histadd(':', getcmdline())
-	exe 'au filemanager ShellCmdPost  <buffer>  ++once '
-	    \.'eval histget(":", -1) ==# '.string(l:expanded).' && histdel(":", -1)'
-
-	return l:expanded
+" Buffer initialization {{{
+fun! s:getbufnr()  " {{{
+	let l:list = filter(copy(s:buflist), 'index(tabpagebuflist(), v:val) != -1')
+	return empty(l:list) ? -1 : l:list[0]
 endfun  " }}}
 
 
@@ -2162,12 +2170,6 @@ fun! s:initialize(path, aux)  " {{{
 
 	call s:printtree(0)
 	call cursor(2, 1)
-endfun  " }}}
-
-
-fun! s:getbufnr()  " {{{
-	let l:list = filter(copy(s:buflist), 'index(tabpagebuflist(), v:val) != -1')
-	return empty(l:list) ? -1 : l:list[0]
 endfun  " }}}
 
 
