@@ -1477,6 +1477,8 @@ fun! s:markbypat(pattern, bang, glob, yank)  " {{{
 		call uniq(sort(extend(l:list, l:matches)))
 	endif
 	if l:oldlen != len(l:list)
+		echo (a:yank ? 'Yanked' : 'Marked').' list '.(l:oldlen > len(l:list) ? 'reduced' : 'extended')
+		     \.' by '.(abs(l:oldlen - len(l:list))).' (from '.l:oldlen.' to '.len(l:list).')'
 		let b:fm_markedtick += !a:yank
 		let s:yankedtick += a:yank
 		call s:printtree(1)
@@ -1524,19 +1526,13 @@ endfun  " }}}
 fun! s:yankmarked(list=0)  " {{{
 	let l:list = type(a:list) == v:t_list ? a:list : b:fm_marked
 	if empty(l:list)
-		if empty(s:yanked)
-			echo 'Nothing to yank'
-		else
-			echo 'Nothing to yank. Currently yanked:'
-			echo ' '.join(s:yanked, "\n ")
-		endif
+		echo 'Nothing to yank'
 		return
 	endif
 	let l:oldlen = len(s:yanked)
 	call uniq(sort(extend(s:yanked, l:list)))
 	if len(s:yanked) == l:oldlen
-		echo 'Nothing new yanked. Current list:'
-		echo ' '.join(s:yanked, "\n ")
+		echo 'Nothing new yanked'
 	else
 		echo 'Yanked list extended by '.(len(s:yanked) - l:oldlen)
 		     \.' (from '.l:oldlen.' to '.len(s:yanked).')'
@@ -1568,18 +1564,15 @@ fun! s:resetyanked(list=0)  " {{{
 		return
 	endif
 	let l:oldlen = len(s:yanked)
-	for l:path in l:list
-		let l:i = index(s:yanked, l:path)
-		if l:i == -1
-			echo '"'.l:path.'" is not yanked'
-		else
-			call remove(s:yanked, l:i)
-		endif
+	let l:list = filter(map(copy(l:list), 'index(s:yanked, v:val)'), 'v:val != -1')
+	for l:i in reverse(sort(l:list, 'n'))
+		call remove(s:yanked, l:i)
 	endfor
 	if len(s:yanked) == l:oldlen
+		echo 'No '.(type(a:list) == v:t_list ? 'selected items were' : 'marked items are').' yanked'
 		return
 	endif
-	echo 'Yanked list shrunk by '.(l:oldlen - len(s:yanked))
+	echo 'Yanked list reduced by '.(l:oldlen - len(s:yanked))
 	     \.' (from '.l:oldlen.' to '.len(s:yanked).')'
 	let s:yankedtick += 1
 	if type(a:list) != v:t_list
