@@ -25,6 +25,7 @@ let s:preferbelow          = get(g:, 'filemanager_preferbelow',          1)
 let s:vertical             = get(g:, 'filemanager_vertical',             1)
 let s:alwaysfixwinsize     = get(g:, 'filemanager_alwaysfixwinsize',     1)
 let s:enablemouse          = get(g:, 'filemanager_enablemouse',          1)
+let s:defaultyes           = get(g:, 'filemanager_defaultyes',           0)
 let s:bookmarkonbufexit    = get(g:, 'filemanager_bookmarkonbufexit',    1)
 let s:usebookmarkfile      = get(g:, 'filemanager_usebookmarkfile',      1)
 let s:writebackupbookmarks = get(g:, 'filemanager_writebackupbookmarks', 0)
@@ -65,6 +66,9 @@ aug filemanager
 	endif
 aug END
 
+
+let s:defaultyes = !empty(s:defaultyes)
+let s:yesno = s:defaultyes ? "&Yes\n&No" : "&No\n&Yes"
 
 let s:filetypepat = '\%([\*@=|/]\|!@\|\)'
 
@@ -1127,7 +1131,7 @@ fun! s:bookmarkdel(bang, name)  " {{{
 	elseif a:name ==# 'file' && !empty(s:bookmarkfile)
 		if !s:pathexists(s:bookmarkfile, 1)
 			echomsg 'Bookmark file non-existent'
-		elseif confirm("Delete bookmark file?", "&No\n&Yes") == 2 && delete(s:bookmarkfile)
+		elseif confirm("Delete bookmark file?", s:yesno) == 2-s:defaultyes && delete(s:bookmarkfile)
 			echohl ErrorMsg
 			echomsg 'Failed to delete bookmark file'
 			echohl None
@@ -1145,7 +1149,7 @@ fun! s:bookmarkdel(bang, name)  " {{{
 	elseif a:bang
 		if len(s:bookmarks) == 1
 			echo 'No bookmarks saved'
-		elseif confirm("Delete all bookmarks?", "&No\n&Yes") == 2
+		elseif confirm("Delete all bookmarks?", s:yesno) == 2-s:defaultyes
 			call filter(s:bookmarks, 'v:key == ""')
 		endif
 	endif
@@ -1178,7 +1182,7 @@ fun! s:newdir()  " {{{
 	endif
 
 	let l:outside = l:name[:len(b:fm_treeroot)-1] !=# b:fm_treeroot
-	if l:outside && confirm("Create directory outside the current tree?", "&No\n&Yes") < 2
+	if l:outside && confirm("Create directory outside the current tree?", s:yesno) != 2-s:defaultyes
 		return
 	endif
 	try
@@ -1603,7 +1607,7 @@ fun! s:pastemarked(leave, doyanked)  " {{{
 	if !empty(s:filterexisting(l:existing))
 		echo 'Destinations already exist:'
 		echo ' '.join(l:existing, "\n ")
-		if confirm("Overwrite?", "&No\n&Yes") < 2
+		if confirm("Overwrite?", s:yesno) != 2-s:defaultyes
 			echo 'Nothing pasted'
 			return
 		endif
@@ -1611,7 +1615,7 @@ fun! s:pastemarked(leave, doyanked)  " {{{
 
 	echo 'Items to paste:'
 	echo ' '.join(l:list, "\n ")
-	if confirm("Paste?", "&No\n&Yes") < 2
+	if confirm("Paste?", s:yesno) != 2-s:defaultyes
 		echo 'Operation canceled'
 		return
 	endif
@@ -1641,7 +1645,7 @@ fun! s:movemarked(doyanked)  " {{{
 
 	echo 'Items to cut and paste:'
 	echo ' '.join(l:list, "\n ")
-	if confirm("Cut and paste?", "&No\n&Yes") < 2
+	if confirm("Cut and paste?", s:yesno) != 2-s:defaultyes
 		echo 'Operation canceled'
 		return
 	endif
@@ -1682,7 +1686,7 @@ fun! s:deletemarked(doyanked, list=0)  " {{{
 	if !empty(l:files)
 		echo 'Files to delete:'
 		echo ' '.join(l:files, "\n ")
-		if confirm("Delete printed files?", "&No\n&Yes") < 2
+		if confirm("Delete printed files?", s:yesno) != 2-s:defaultyes
 			echo 'Files not deleted'
 		else
 			call s:deletelist(l:files, '')
@@ -1844,7 +1848,7 @@ fun! s:renamebylist(listfrom, listto)  " {{{
 	if !empty(l:existing)
 		echo 'Destinations already exist:'
 		echo ' '.join(l:existing, "\n ")
-		if confirm("Overwrite?", "&No\n&Yes") < 2
+		if confirm("Overwrite?", s:yesno) != 2-s:defaultyes
 			echo 'Nothing moved'
 			return 1
 		endif
