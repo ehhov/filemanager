@@ -1488,14 +1488,14 @@ endfun  " }}}
 
 
 " File selection and operations {{{
-fun! s:namematches(tree, relpath, pattern)  " {{{
+fun! s:matchcontents(tree, relpath, pattern)  " {{{
 	let l:list = []
 	for [l:name, l:contents] in items(a:tree)
 		if l:name != '' && match('/'.a:relpath.l:name, b:fm_ignorecase.a:pattern) != -1
 			call add(l:list, b:fm_treeroot.a:relpath.l:name)
 		endif
 		if type(l:contents) == v:t_dict && !empty(l:contents)
-			let l:list += s:namematches(l:contents, a:relpath.l:name.'/', a:pattern)
+			let l:list += s:matchcontents(l:contents, a:relpath.l:name.'/', a:pattern)
 		endif
 	endfor
 	return l:list
@@ -1517,7 +1517,7 @@ fun! s:markbypat(pattern, bang, glob, yank)  " {{{
 	endif
 	let l:oldlen = len(l:list)
 	let l:tree = empty(b:fm_filters) ? b:fm_tree : s:filtercontents(b:fm_tree, '', 0)
-	let l:matches = s:namematches(l:tree, '', s:convertpattern(a:pattern, a:glob))
+	let l:matches = s:matchcontents(l:tree, '', s:convertpattern(a:pattern, a:glob))
 	if a:bang
 		call filter(map(l:matches, 'index(l:list, v:val)'), 'v:val != -1')
 		for l:i in reverse(sort(l:matches, 'n'))
