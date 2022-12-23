@@ -316,33 +316,21 @@ fun! s:printcontents(dic, path, depth, linenr)  " {{{
 endfun  " }}}
 
 
-fun! s:filtercontents(dic, relpath, depth)  " {{{
-	let l:filtered = {}
-	for [l:name, l:contents] in items(a:dic)
-		if type(l:contents) == v:t_dict && !empty(l:contents)
-			let l:contents = s:filtercontents(l:contents, a:relpath.l:name.'/', a:depth+1)
-			" No need to check if name matches when contents do
-			if len(l:contents) > 1
-				let l:filtered[l:name] = l:contents
-				continue
-			endif
-		endif
-		if l:name == '' || (type(l:contents) == v:t_dict && b:fm_skipfilterdirs > a:depth)
-			let l:filtered[l:name] = l:contents
-			continue
-		endif
-		let l:all = 1
-		for l:pattern in b:fm_filters
-			if (l:pattern[0] !=# '!') == (match('/'.a:relpath.l:name, b:fm_ignorecase.l:pattern[1:]) == -1)
-				let l:all = 0
-				break
-			endif
-		endfor
-		if l:all
-			let l:filtered[l:name] = l:contents
+fun! s:satisfiesfilters(relpath)  " {{{
+	for l:pat in b:fm_filters
+		if (l:pat[0] == '!') != (match("/".a:relpath, b:fm_ignorecase.l:pat[1:]) == -1)
+			return 0
 		endif
 	endfor
-	return l:filtered
+	return 1
+endfun  " }}}
+
+
+fun! s:filtercontents(dic, relpath, depth)  " {{{
+	let l:ret = map(copy(a:dic), 'type(v:val) == v:t_dict && len(v:val) > 1 ? '
+	                \.'s:filtercontents(v:val, a:relpath.v:key."/", a:depth+1) : v:val')
+	return filter(l:ret, '(type(v:val) == v:t_dict && (b:fm_skipfilterdirs > a:depth || len(v:val) > 1))'
+	              \.'|| v:key == "" || s:satisfiesfilters(a:relpath.v:key)')
 endfun  " }}}
 
 
