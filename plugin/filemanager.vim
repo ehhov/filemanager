@@ -1855,10 +1855,14 @@ fun! s:renamefinish(do)  " {{{
 		call s:renamebylist(l:renamefrom, l:renameto)
 	endif
 
+	let l:previouspath = a:do == 1 ? '' : s:undercursorlist(1, [line('.')], b:fm_renamefrom, 3)[0]
 	unlet b:fm_renamefrom
 	setl nomodifiable readonly undolevels=-1
 	call s:definemapcmdautocmd()
 	call s:refreshtree(-1, a:do != 1)
+	if a:do != 1 && s:movecursorbypath(l:previouspath)
+		call cursor(2, 1)
+	endif
 endfun  " }}}
 
 
