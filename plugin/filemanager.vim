@@ -183,6 +183,18 @@ fun! s:getdircontents(path)  " {{{
 endfun  " }}}
 
 
+fun! s:sortorderindex(splitsortorder, name)  " {{{
+	let l:i = 0
+	for l:pat in a:splitsortorder
+		if l:pat != '' && match(a:name, '\C'.l:pat) != -1
+			return l:i
+		endif
+		let l:i += 1
+	endfor
+	return -1
+endfun  " }}}
+
+
 fun! s:sortbyname(list, path, sortorder)  " {{{
 	let l:splitsortorder = split(a:sortorder, '[^\\]\zs,')
 	call map(l:splitsortorder, 'substitute(v:val, "\\\\,", ",", "g")')
@@ -195,19 +207,12 @@ fun! s:sortbyname(list, path, sortorder)  " {{{
 	endfor
 	for l:name in a:list
 		let l:matchname = getftype(a:path.l:name) == 'dir' ? l:name.'/' : l:name
-		let l:i = 0
-		for l:pat in l:splitsortorder
-			if l:pat != '' && match(l:matchname, '\C'.l:pat) != -1
-				let l:i = -l:i - 1
-				break
-			endif
-			let l:i += 1
-		endfor
+		let l:i = s:sortorderindex(l:splitsortorder, l:matchname)
 		if l:i < 0
-			call add(l:matches[-l:i-1], l:name)
-		else
 			call add(l:rest[(l:matchname[-1:-1] != '/')
 			               \+2*(l:matchname[0] == '.')], l:name)
+		else
+			call add(l:matches[l:i], l:name)
 		endif
 	endfor
 	for [l:i, l:j] in [[2, (l:restid[3] == -1 ? 0 : 3)], [0, 1], [3, 1]]
