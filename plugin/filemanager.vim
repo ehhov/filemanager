@@ -440,6 +440,20 @@ fun! s:undercursorlist(keeptrailslash, linenrlist, lines=0, shift=0)  " {{{
 endfun  " }}}
 
 
+fun! s:findmatchingline(sufficient, necessary, startline, endline)  " {{{
+	let l:linenr = a:startline
+	while 1
+		if match(getline(l:linenr), a:sufficient) != -1
+			return l:linenr
+		endif
+		if match(getline(l:linenr), a:necessary) == -1 || l:linenr >= a:endline
+			return -1
+		endif
+		let l:linenr += 1
+	endwhile
+endfun  " }}}
+
+
 fun! s:movecursorbypath(path)  " {{{
 	let l:list = split(a:path[len(b:fm_treeroot):], '/')
 	if empty(l:list)
@@ -448,23 +462,16 @@ fun! s:movecursorbypath(path)  " {{{
 	endif
 	let l:depth = 0
 	let l:linenr = 2
-	let l:lastnr = line('$')
 	for l:name in l:list
-		let l:linenr += 1
 		let l:depth += 1
-		while 1
-			if match(getline(l:linenr), '\C^'.s:depthstrpat.'\{'.l:depth.'}'.s:seppat.'\V'.escape(l:name, '\').'\m'.s:seppat.s:filetypepat.'$') != -1
-				break
-			endif
-			if match(getline(l:linenr), '\C^'.s:depthstrpat.'\{'.l:depth.'}') == -1 || l:linenr >= l:lastnr
-				echo 'Path not visible or non-existent: "'.a:path.'"'
-				return 1
-			endif
-			let l:linenr += 1
-		endwhile
+		let l:linenr = s:findmatchingline('\C^'.s:depthstrpat.'\{'.l:depth.'}'.s:seppat.'\V'.escape(l:name, '\').'\m'.s:seppat.s:filetypepat.'$',
+		                                  \ '\C^'.s:depthstrpat.'\{'.l:depth.'}', l:linenr+1, line('$'))
+		if l:linenr < 0
+			echo 'Path not visible or non-existent: "'.a:path.'"'
+			return 1
+		endif
 	endfor
-	let l:linenr += (a:path[-1:-1] == '/')
-	call cursor(l:linenr, 0)
+	call cursor(l:linenr + (a:path[-1:-1] == '/'), 0)
 	return 0
 endfun  " }}}
 
