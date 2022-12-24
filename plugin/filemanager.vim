@@ -62,7 +62,7 @@ aug filemanager
 	au VimEnter           *  silent! au! FileExplorer
 	au VimEnter,BufEnter  *  call s:enter(expand('<afile>:p'), str2nr(expand('<abuf>')))
 	if s:usebookmarkfile
-		au VimEnter     *  silent call s:loadbookmarks()
+		au VimEnter     *  call extend(s:bookmarks, s:loadbookmarkfile())
 		au VimLeavePre  *  eval s:writebookmarks(0) && confirm("Error when leaving Vim", "Seen")
 	endif
 aug END
@@ -809,6 +809,15 @@ fun! s:printbookmarks()  " {{{
 endfun  " }}}
 
 
+fun! s:loadbookmarkfile()  " {{{
+	if !filereadable(s:bookmarkfile)
+		return {}
+	endif
+	let l:saved = readfile(s:bookmarkfile)
+	return empty(l:saved) || empty(l:saved[0]) ? {} : s:fixoldbookmarks(eval(l:saved[0]))
+endfun  " }}}
+
+
 fun! s:writebookmarks(overwrite)  " {{{
 	if s:writebackupbookmarks && s:writeshortbookmarks
 		let l:bookmarks = s:bookmarks
@@ -818,23 +827,13 @@ fun! s:writebookmarks(overwrite)  " {{{
 	else
 		let l:bookmarks = filter(copy(s:bookmarks), 'v:key == "" || index(s:bookmarknames, v:val) == -1')
 	endif
-	if !a:overwrite && filereadable(s:bookmarkfile)
-		let l:saved = readfile(s:bookmarkfile)
-		if empty(l:saved) || empty(l:saved[0]) || empty(eval(l:saved[0]))
-			let l:saved = l:bookmarks
-		else
-			let l:saved = eval(l:saved[0])
-			call extend(l:saved, l:bookmarks)
-		endif
-	else
-		let l:saved = l:bookmarks
-	endif
+	let l:bookmarks = a:overwrite ? l:bookmarks ? extend(s:loadbookmarkfile(), l:bookmarks)
 	let l:err = 1
 	try
 		if !s:pathexists(fnamemodify(s:bookmarkfile, ':h'), 1)
 			call mkdir(fnamemodify(s:bookmarkfile, ':h'), 'p')
 		endif
-		let l:err = writefile([string(l:saved)], s:bookmarkfile)
+		let l:err = writefile([string(l:bookmarks)], s:bookmarkfile)
 	finally
 		" No error only when writefile() finishes and returns 0
 		if l:err
@@ -848,18 +847,12 @@ endfun  " }}}
 
 
 fun! s:loadbookmarks()  " {{{
-	if !filereadable(s:bookmarkfile)
-		echohl ErrorMsg
-		echomsg 'Bookmark file not readable or non-existent'
-		echohl None
-	else
-		let l:saved = readfile(s:bookmarkfile)
-		if empty(l:saved) || empty(l:saved[0]) || empty(eval(l:saved[0]))
-			echo 'Bookmark file empty'
-		else
-			call extend(s:bookmarks, s:fixoldbookmarks(eval(l:saved[0])))
-		endif
+	let l:loaded = s:loadbookmarkfile()
+	if empty(l:loaded)
+		echo 'Bookmark file empty or non-existent'
+		return
 	endif
+	call extend(s:bookmarks, l:loaded)
 endfun  " }}}
 
 
