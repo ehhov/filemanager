@@ -63,7 +63,7 @@ aug filemanager
 	au VimEnter,BufEnter  *  call s:enter(expand('<afile>:p'), str2nr(expand('<abuf>')))
 	if s:usebookmarkfile
 		au VimEnter     *  silent call s:loadbookmarks()
-		au VimLeavePre  *  call s:writebookmarks(2)
+		au VimLeavePre  *  eval s:writebookmarks(0) && confirm("Error when leaving Vim", "Seen")
 	endif
 aug END
 
@@ -267,12 +267,11 @@ fun! s:printcontents(dic, path, depth, linenr)  " {{{
 
 	for l:name in s:sort(a:dic, a:path)
 		let l:ftype = getftype(a:path.l:name)
-		if l:name == ''
+		if l:name == '' && len(a:dic) > 1
 			" This is where timestamps are stored
-			if len(a:dic) > 1
-				continue
-			endif
-			" Directory was empty
+			continue
+		elseif l:name == ''
+			" Directory is empty
 			let l:line = s:separator
 		elseif executable(a:path.l:name) && l:ftype != 'link' && l:ftype != 'dir'
 			let l:line = l:name.s:separator.'*'
@@ -735,13 +734,11 @@ fun! s:bookmarkbackup(bufnr)  " {{{
 	let l:bakind = index(s:bookmarkvars, 'bak')
 	let l:shift = []
 	for l:name in s:bookmarknames
-		if has_key(s:bookmarks, l:name)
-			if s:bookmarks[l:name][l:bakind]
-				call insert(l:shift, l:name)
-			endif
-		else
+		if !has_key(s:bookmarks, l:name)
 			call insert(l:shift, l:name)
 			break
+		elseif s:bookmarks[l:name][l:bakind]
+			call insert(l:shift, l:name)
 		endif
 	endfor
 	while len(l:shift) > 1
@@ -800,7 +797,7 @@ fun! s:printbookmarks()  " {{{
 endfun  " }}}
 
 
-fun! s:writebookmarks(operation)  " {{{
+fun! s:writebookmarks(overwrite)  " {{{
 	if s:writebackupbookmarks && s:writeshortbookmarks
 		let l:bookmarks = s:bookmarks
 	elseif s:writeshortbookmarks
@@ -809,7 +806,7 @@ fun! s:writebookmarks(operation)  " {{{
 	else
 		let l:bookmarks = filter(copy(s:bookmarks), 'v:key == "" || index(s:bookmarknames, v:val) == -1')
 	endif
-	if a:operation != 1 && filereadable(s:bookmarkfile)
+	if !a:overwrite && filereadable(s:bookmarkfile)
 		let l:saved = readfile(s:bookmarkfile)
 		if empty(l:saved) || empty(l:saved[0]) || empty(eval(l:saved[0]))
 			let l:saved = l:bookmarks
@@ -832,14 +829,9 @@ fun! s:writebookmarks(operation)  " {{{
 			echohl ErrorMsg
 			echomsg 'Failed to write bookmarks to file'
 			echohl None
-			" Make sure the user sees this on VimLeavePre
-			if a:operation == 2
-				call confirm("Error on VimLeave", "Seen")
-			endif
-			return 1
 		endif
+		return l:err
 	endtry
-	return 0
 endfun  " }}}
 
 
@@ -1827,13 +1819,10 @@ fun! s:renametreeprepare()  " {{{
 	let l:markedtree = {}
 	for l:path in l:marked
 		let l:dic = l:markedtree
-		for l:dir in split(l:path, '/')[:-2]
-			if type(get(l:dic, l:dir, 0)) != v:t_dict
-				let l:dic[l:dir] = {'': 0}
-			endif
-			let l:dic = l:dic[l:dir]
+		for l:name in split(l:path, '/')
+			let l:dic[l:name] = get(l:dic, l:name, {})
+			let l:dic = l:dic[l:name]
 		endfor
-		call extend(l:dic, {fnamemodify(l:path, ':t'): 0}, 'keep')
 	endfor
 	call s:renametree(l:markedtree)
 endfun  " }}}
@@ -2171,12 +2160,10 @@ fun! s:spawn(dir, bang, count, vertical)  " {{{
 	if a:bang && a:dir == ''
 		if l:bufnr == -1
 			echo 'No filemanager open in current tab'
+		elseif len(getbufinfo({'buflisted': 1})) == 1
+			echo 'Already last buffer'
 		else
-			if len(getbufinfo({'buflisted': 1})) == 1
-				echo 'Already last buffer'
-			else
-				exe l:bufnr.'bdelete'
-			endif
+			exe l:bufnr.'bdelete'
 		endif
 		return
 	endif
