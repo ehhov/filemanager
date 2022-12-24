@@ -26,6 +26,7 @@ let s:vertical             = get(g:, 'filemanager_vertical',              1)
 let s:alwaysfixwinsize     = get(g:, 'filemanager_alwaysfixwinsize',      1)
 let s:enablemouse          = get(g:, 'filemanager_enablemouse',           1)
 let s:defaultyes           = get(g:, 'filemanager_defaultyes',            0)
+let s:alwaysexternal       = get(g:, 'filemanager_alwaysexternal',       '')
 let s:bookmarkonbufexit    = get(g:, 'filemanager_bookmarkonbufexit',     1)
 let s:usebookmarkfile      = get(g:, 'filemanager_usebookmarkfile',       1)
 let s:writebackupbookmarks = get(g:, 'filemanager_writebackupbookmarks',  0)
@@ -1200,6 +1201,16 @@ endfun  " }}}
 
 
 " File operations {{{
+fun! s:matchesalwaysexternal(path)  " {{{
+	for l:pat in s:alwaysexternal
+		if match(a:path, '\C'.l:pat) != -1
+			return 1
+		endif
+	endfor
+	return 0
+endfun  " }}}
+
+
 fun! s:newdir()  " {{{
 	let l:path = fnamemodify(s:undercursor(1, line('.') > 3 ? line('.') : 3), ':h')
 	if s:dirreadable(l:path)
@@ -1336,6 +1347,10 @@ fun! s:open(path, mode)  " {{{
 	elseif s:pathexists(a:path, 0) && !filereadable(a:path)
 		echo '"'.a:path.'" is not readable'
 		return
+	endif
+
+	if a:mode == 0 && s:matchesalwaysexternal(a:path)
+		return s:openexternal(a:path)
 	endif
 
 	if b:fm_auxiliary && a:mode != 4  " allow opening in a new tab
@@ -1970,6 +1985,10 @@ fun! s:checkconfig()  " {{{
 	endfor
 	" Avoid unverified run time changes
 	let s:sortrules = copy(s:sortrules)
+	let s:alwaysexternal = map(split(s:alwaysexternal, '[^\\]\zs,'),
+	                           \'substitute(v:val, "\\\\,", ",", "g")')
+	call filter(s:alwaysexternal, 'v:val != "" && !s:checkregex(v:val)')
+	call map(s:alwaysexternal, 's:convertpattern(v:val, 0)')
 	echohl ErrorMsg
 	if s:winsize < 1 || s:winsize > 99
 		echomsg 'Invalid window size "'.s:winsize.'". Variable set to 20'

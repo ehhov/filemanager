@@ -190,6 +190,7 @@ default values:
                                           on initialization, not only by :L, :V, :H commands
  g:filemanager_enablemouse = 1            Enable mouse mappings (double left click as Enter)
  g:filemanager_defaultyes = 0             Choose "yes" by default when deleting files etc.
+ g:filemanager_alwaysexternal = ''        Regexes for file names to always open externally
  g:filemanager_bookmarkonbufexit = 1      Save a backup bookmark when buffer is closed
  g:filemanager_usebookmarkfile = 1        Save bookmarks to file and load them from it
                                           For Vim, the file is located at ~/.vim/.filemanagerbookmarks
