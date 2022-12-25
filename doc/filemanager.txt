@@ -1,0 +1,1727 @@
+*filemanager.txt*	Simple yet functional tree explorer plugin
+
+
+                         FILEMANAGER REFERENCE MANUAL
+                              by Kerim Guseynov
+                     https://github.com/ehhov/filemanager
+
+
+                                                                 *filemanager*
+
+filemanager is a simple yet functional tree explorer and file manager plugin
+for Vim and Neovim. filemanager is written from scratch to be as
+straightforward as possible while providing a rich feature set to cover all
+tasks of a file manager built into a text editor. Its main focus is to give
+the user full control over all actions and never do anything unexpected.
+
+
+==============================================================================
+Contents                                                *filemanager-contents*
+
+1.    Overview....................................|filemanager-overview|
+2.    Mappings....................................|filemanager-mappings|
+3.    Commands....................................|filemanager-commands|
+4.    Configuration...............................|filemanager-configuration|
+5.    File and directory selection................|filemanager-selection|
+6.    Filters.....................................|filemanager-filters|
+7.    Bookmarks...................................|filemanager-bookmarks|
+8.    Renaming by editing tree....................|filemanager-treerename|
+9.    Primary and auxiliary buffers...............|filemanager-auxiliary|
+10.   Technical details...........................|filemanager-technical|
+
+
+==============================================================================
+1. Overview                                             *filemanager-overview*
+
+filemanager provides the following major features:
+
+  * Browse directories, open and fold them one-by-one, collectively,
+    or recursively. The directory tree is automatically updated when entering
+    filemanager buffers.
+
+  * Open files from the directory tree, by name, or find them in 'path'.
+    Window placement can be finely configured.
+
+  * Open files in external programs (using `xdg-open` by default).
+    Specify file names to always open in external programs.
+
+  * File names of any complexity are always handled correctly.
+    The same applies to syntax (file type) highlighting as well.
+
+  * Run shell commands and open terminal windows in the tree root and in
+    the directory under the cursor.
+
+  * Select files and directories interactively or by regex/glob.
+    Perform actions on selected items: copy, move, rename, delete, or use in
+    an arbitrary shell command.
+
+  * Rename files in bulk directly by editing buffer lines of the directory
+    tree.
+
+  * Finely configure sorting order for some directories specifically.
+
+  * Hide files ignored by Git.
+
+  * Filter the directory tree by regex/glob with support for nested and
+    exclusive filters.
+
+  * Save filemanager buffers in bookmarks that store all configuration options
+    and the directory view. Bookmarks are saved and shared between Vim
+    sessions.
+
+  * Cursor position is maintained based on path during all actions.
+
+  * filemanager allows independent buffers with the same tree root directory.
+
+  * One primary filemanager buffer per tab and however many auxiliary ones are
+    allowed.
+
+To open filemanager windows, use the global `:L`, `:V`, or `:H` commands or
+simply edit a directory.
+
+
+==============================================================================
+2. Mappings                                             *filemanager-mappings*
+
+     `Mapping     Action                                 Link`
+
+     `--------------- File operations & shell commands ---------------`
+        <cr>     Open file or fold/unfold directory     |filemanager-cr|
+           v     Open file in a vertical window         |filemanager-v|
+           o     Open file in a horizontal window       |filemanager-o|
+           O     Open file in a maximized window        |filemanager-O|
+           s     Open file in a horizontal split        |filemanager-s|
+           a     Open file in a vertical split          |filemanager-a|
+           t     Open file/directory in a new tab       |filemanager-t|
+           E     Open file in filemanager window        |filemanager-E|
+           f     Open file/directory by name            |filemanager-f|
+           F     Find and open file in 'path'           |filemanager-F|
+           x     Open in external program               |filemanager-x|
+           X     Open in external program by name       |filemanager-X|
+          gf     Print output of `file`                   |filemanager-gf|
+          gs     Print output of `stat`                   |filemanager-gs|
+           T     Open terminal in tree root             |filemanager-T|
+           U     Open terminal under the cursor         |filemanager-U|
+           c     Run shell command under the cursor     |filemanager-c|
+     `--------------------- Directory navigation ---------------------`
+           d     Create new directory                   |filemanager-d|
+           l     Descend one directory deeper           |filemanager-l|
+          gl     Descend fully under the cursor         |filemanager-gl|
+           h     Go to parent directory                 |filemanager-h|
+     <right>     Same as l above                        |filemanager-right|
+   <s-right>     Same as gl above                       |filemanager-s-right|
+      <left>     Same as h above                        |filemanager-left|
+          zc     Fold directory                         |filemanager-zc|
+          zC     Fold directory recursively             |filemanager-zC|
+          zm     Fold deepest unfolded directories      |filemanager-zm|
+          zM     Fold everything                        |filemanager-zM|
+          zo     Unfold directory recursively           |filemanager-zo|
+      CTRL-L     Refresh tree                           |filemanager-ctrl-l|
+      CTRL-R     Force refresh tree                     |filemanager-ctrl-r|
+     `------------------ Buffer settings & operations -----------------`
+           S     Sort by name or time                   |filemanager-S|
+          gr     Toggle reverse sorting order           |filemanager-gr|
+          gR     Toggle using sorting rules             |filemanager-gR|
+          gS     Configure sorting order                |filemanager-gS|
+          gi     Ignore case for filtering and marking  |filemanager-gi|
+          gh     Toggle showing hidden files            |filemanager-gh|
+          gG     Toggle showing files ignored by Git    |filemanager-gG|
+          gd     Change directory immunity to filters   |filemanager-gd|
+          gF     Print current filters                  |filemanager-gF|
+     , . < >     Scroll horizontally                    |filemanager-,|
+     `----------------------- Selecting files ------------------------`
+           i     Mark/unmark item under the cursor      |filemanager-i|
+           I     Unmark everything                      |filemanager-I|
+           y     Yank marked/visually selected items    |filemanager-y|
+           Y     Unyank marked/visually selected items  |filemanager-Y|
+           D     Delete marked/visually selected items  |filemanager-D|
+       <del>     Same as D above                        |filemanager-del|
+          zD     Delete yanked items                    |filemanager-zD|
+     <s-del>     Same as zD above                       |filemanager-s-del|
+           p     Paste marked items under the cursor    |filemanager-p|
+          zp     Same as p, but don't unmark            |filemanager-zp|
+           P     Paste yanked items under the cursor    |filemanager-P|
+          zP     Same as P, but don't unyank            |filemanager-zP|
+          Cp     Move marked items under the cursor     |filemanager-Cp|
+          CP     Move yanked items under the cursor     |filemanager-CP|
+           r     Rename marked items                    |filemanager-r|
+           R     Rename files by editing tree           |filemanager-R|
+      CTRL-N     Move cursor to next marked item        |filemanager-ctrl-n|
+      CTRL-P     Move cursor to previous marked item    |filemanager-ctrl-p|
+     `---------------------- Bookmark operations ---------------------`
+       b<cr>     Print all bookmarks                    |filemanager-bcr|
+     b{name}     Restore bookmark {name}                |filemanager-b|
+     B{name}     Save state to bookmark {name}          |filemanager-B|
+
+        <cr>     In cmdline mode: process cmdline       |filemanager-c_cr|
+
+    <2-leftmouse>  Open file or fold/unfold directory   |filemanager-mouse|
+
+
+<Enter>                                   *filemanager-enter* *filemanager-cr*
+<cr>            Open the file under the cursor in the previous window (or ask
+                for confirmation). If there was none, create a new
+                vertical/horizontal window (|filemanager-placement|).
+                Note: when the filemanager buffer is auxiliary, replace it.
+                When the file path matches |filemanager-alwaysexternal|, open
+                it in an external program (|filemanager-opencmd|).
+                If a directory is under the cursor, unfold it in the tree, or
+                fold if already unfolded.
+                When <cr> is hit on the first line, acts like |filemanager-h|.
+                On the second line, acts like |filemanager-ctrl-r|.
+
+                                                             *filemanager-v*
+v               Open the file under the cursor in a single vertical window.
+                Closes other windows on the screen (or asks for confirmation).
+                Sets orientation to vertical (|filemanager-orientation|).
+                See also |filemanager-placement|.
+                Note: when the filemanager buffer is auxiliary, replace it.
+
+                                                             *filemanager-o*
+o               Open the file under the cursor in a single horizontal window.
+                Closes other windows on the screen (or asks for confirmation).
+                Sets orientation to horizontal (|filemanager-orientation|).
+                See also |filemanager-placement|.
+                Note: when the filemanager buffer is auxiliary, replace it.
+
+                                                             *filemanager-O*
+O               Open the file under the cursor in a new window, place it above
+                or below others (|filemanager-preferbelow|), and maximize.
+                Note: when the filemanager buffer is auxiliary, replace it.
+
+                                                             *filemanager-s*
+s               Open the file under the cursor in a new horizontal split
+                alongside existing windows. When filemanager orientation is
+                vertical, the new window is placed like by |filemanager-o| but
+                relative to existing windows. When filemanager orientation is
+                horizontal, the new window is placed closer to filemanager.
+                See also |filemanager-placement|.
+                Note: when the filemanager buffer is auxiliary, replace it.
+
+                                                             *filemanager-a*
+a               Open the file under the cursor in a new vertical split
+                alongside existing windows. When filemanager orientation is
+                vertical, the new window is placed closer to filemanager. When
+                filemanager orientation is horizontal, the new window is
+                placed like by |filemanager-v| but relative to existing
+                windows.
+                See also |filemanager-placement|.
+                Note: when the filemanager buffer is auxiliary, replace it.
+
+                                                             *filemanager-t*
+t               Open the file or directory under the cursor in a new tab.
+
+                                                             *filemanager-E*
+E               Open the file under the cursor in filemanager's window.
+                filemanager is replaced with the file.
+                To open a directory in filemanager's window (i.e. descend into
+                it), use |filemanager-gl|.
+
+                                                             *filemanager-f*
+f               Change to the directory under the cursor and prompt for a file
+                name. Full path is also allowed. A new file name can be given
+                as well.
+                If a file is supplied, it is opened as by |filemanager-cr|
+                (but skipping |filemanager-alwaysexternal|).
+                If a directory is supplied, filemanager descends into it (sets
+                as the new tree root) similar to |filemanager-gl|.
+
+                                                             *filemanager-F*
+F               Prompt for a file name to find in 'path' as by |:find|.
+                Accepts count and acts like :<count>find.
+                The file is opened as by |filemanager-cr| (but skipping
+                |filemanager-alwaysexternal|).
+                To find and open a directory correctly, use |:find| itself.
+
+                                                             *filemanager-x*
+x               Open the item under the cursor in an external program.
+                See |filemanager-opencmd|.
+
+                                                             *filemanager-X*
+X               Change to the directory under the cursor and prompt for a file
+                name. Full path is also allowed. The file/directory supplied
+                is then opened in an external program.
+                See |filemanager-opencmd|.
+
+                                                            *filemanager-gf*
+gf              Print the output of `file` for the item under the cursor.
+
+                                                            *filemanager-gs*
+gs              Print the output of `stat` for the item under the cursor.
+
+                                                             *filemanager-T*
+T               Open a terminal in a single vertical/horizontal window
+                (|filemanager-orientation|). Its working directory is set to
+                the tree root.
+                Closes other windows on the screen (or asks for confirmation).
+                Note: when the filemanager buffer is auxiliary, the terminal
+                window replaces it.
+
+                                                             *filemanager-U*
+U               Open a terminal in a single vertical/horizontal window
+                (|filemanager-orientation|). Its working directory is set to
+                the directory under the cursor.
+                Closes other windows on the screen (or asks for confirmation).
+                Note: when the filemanager buffer is auxiliary, the terminal
+                window replaces it.
+
+                                                             *filemanager-c*
+c               Change to the directory under the cursor and prompt for
+                a shell command.
+
+                                                             *filemanager-d*
+d               Change to the directory under the cursor and prompt for a new
+                directory name. Full path is also allowed. Create parent
+                directories as needed. On success, unfold the new directory
+                and move the cursor to it.
+
+<right>                                    *filemanager-right* *filemanager-l*
+l               Descend one directory deeper under the cursor.
+
+                                                   *filemanager-shift-right*
+<s-right>                               *filemanager-s-right* *filemanager-gl*
+gl              Descend to the deepest visible directory under the cursor.
+
+<left>                                      *filemanager-left* *filemanager-h*
+h               Go to the parent directory.
+
+                                                            *filemanager-zc*
+zc              Fold the directory under the cursor.
+
+                                                            *filemanager-zC*
+zC              Fold the directory under the cursor recursively, up to the
+                tree root.
+
+                                                            *filemanager-zm*
+zm              Fold deepest unfolded directories. Accepts count.
+                Folds all directories deeper than the deepest unfolded
+                directory depth minus the count (1 by default).
+
+                                                            *filemanager-zM*
+zM              Fold all directories except the tree root.
+
+                                                            *filemanager-zo*
+zo              Unfold the directory under the cursor recursively. Accepts
+                count. Unfolds directories up to count deeper (1 by default).
+                Works for the tree root as well.
+
+CTRL-L                                                  *filemanager-ctrl-l*
+<c-l>           Refresh the directory tree based on recorded directory
+                modification times. Print the tree if anything has changed.
+                Then redraw the screen (|CTRL-L|).
+                See |filemanager-refresh| for technical details.
+
+CTRL-R                                                  *filemanager-ctrl-r*
+<c-r>           Force refresh the whole tree unconditionally and print it.
+
+                                                             *filemanager-S*
+S               Sort the directory tree in the current buffer by name or time.
+                To change the default, use |filemanager-sortmethod|.
+                This option is saved on exit (|filemanager-tabvars|).
+
+                                                            *filemanager-gr*
+gr              Toggle reverse sorting order in the current buffer.
+                This option is saved on exit (|filemanager-tabvars|).
+
+                                                            *filemanager-gR*
+gR              Toggle using custom sorting rules specified by
+                |filemanager-sortrules| in the current buffer.
+                This option is saved on exit (|filemanager-tabvars|).
+
+                                                            *filemanager-gS*
+gS              Prompt for a pattern order for sorting by name. Changes are
+                local to the buffer. See |filemanager-sortorder| for format.
+                Sets the default order when an empty string is supplied.
+                To change the default, use |filemanager-sortorder|.
+                This option is saved on exit (|filemanager-tabvars|).
+
+                                                            *filemanager-gi*
+gi              Configure ignore case during marking and filtering.
+                Affects :Filter, :Mark, :Yank, :GFilter, :GMark, :GYank
+                (|filemanager-commands|).
+                Changes are local to the buffer.
+                To change the default, use |filemanager-ignorecase|.
+                This option is saved on exit (|filemanager-tabvars|).
+
+                                                            *filemanager-gh*
+gh              Toggle showing hidden files (dot files) in the current buffer.
+                To change the default, use |filemanager-showhidden|.
+                This option is saved on exit (|filemanager-tabvars|).
+
+                                                            *filemanager-gG*
+gG              Toggle showing files ignored by Git in the current buffer.
+                To change the default, use |filemanager-respectgitignore|.
+                This option is saved on exit (|filemanager-tabvars|).
+
+                                                            *filemanager-gd*
+gd              Configure applying filters to directories in the current
+                buffer. Accepts count and sets the directory immunity depth to
+                it. When both count and the current depth are zero, the depth
+                is set to 1.
+                When the depth is zero, directories can be hidden by filters
+                the same way files can. When the depth is 1 or higher, only
+                directories deeper than the value can be hidden by filters.
+                Useful when contents of many (or all) directories are expected
+                to match (see |filemanager-filterimmunity| for more).
+                See |filemanager-filters| for an overview of functionality.
+                To change the default, use |filemanager-skipfilterdirs|.
+                This option is saved on exit (|filemanager-tabvars|).
+
+                                                            *filemanager-gF*
+gF              Print currently applied filters.
+                See |filemanager-filters| for an overview of functionality.
+
+,                                              *filemanager-,*
+.                                              *filemanager-.*
+<                                              *filemanager-<* *filemanager->*
+>               Mapped to |zh|, |zl|, |zH|, |zL|, respectively (|:noremap|).
+                Scroll horizontally one column or half a screen.
+
+                                                             *filemanager-i*
+i               Mark/unmark the item under the cursor. In visual mode, mark
+                all selected items. Unless all of them are already marked, in
+                which case unmark them.
+                It is impossible to mark the tree root or its parent.
+                See |filemanager-selection| for a general overview.
+
+                                                             *filemanager-I*
+I               Unmark everything.
+                See |filemanager-selection| for a general overview.
+
+                                                             *filemanager-y*
+y               Yank marked items. In visual mode, yank selected items
+                (independently of marked ones).
+                If nothing new is yanked, print currently yanked items.
+                See |filemanager-selection| for a general overview.
+
+                                                             *filemanager-Y*
+Y               Remove marked items from the yanked list. If nothing is
+                marked, remove everything from the yanked list. In visual
+                mode, remove selected items from the yanked list
+                (independently of marked ones).
+                See |filemanager-selection| for a general overview.
+
+                                                        *filemanager-delete*
+<del>                                        *filemanager-del* *filemanager-D*
+D               Delete marked items. If nothing is marked, delete the item
+                under the cursor. In visual mode, delete selected items
+                (independently of marked ones). Successfully deleted items are
+                unmarked (and unyanked).
+                See |filemanager-selection| for a general overview.
+
+                                                  *filemanager-shift-delete*
+                                *filemanager-shift-del* *filemanager-s-delete*
+<s-del>                                   *filemanager-s-del* *filemanager-zD*
+zD              Delete yanked items. Successfully deleted items are unyanked
+                (and unmarked).
+                See |filemanager-selection| for a general overview.
+
+                                                             *filemanager-p*
+p               Paste marked items into the directory under the cursor.
+                Clear the marked list on success.
+                See |filemanager-selection| for a general overview.
+
+                                                            *filemanager-zp*
+zp              Paste marked items into the directory under the cursor.
+                Don't clear the marked list on success.
+                See |filemanager-selection| for a general overview.
+
+                                                             *filemanager-P*
+P               Paste yanked items into the directory under the cursor.
+                Clear the yanked list on success.
+                See |filemanager-selection| for a general overview.
+
+                                                            *filemanager-zP*
+zP              Paste yanked items into the directory under the cursor.
+                Don't clear the yanked list on success.
+                See |filemanager-selection| for a general overview.
+
+                                                            *filemanager-Cp*
+Cp              Move (cut and paste) marked items into the directory under the
+                cursor. Successfully moved items are unmarked (and unyanked).
+                See |filemanager-selection| for a general overview.
+                Note that the `C` key is not immune to 'timeout'.
+
+                                                            *filemanager-CP*
+CP              Move (cut and paste) yanked items into the directory under the
+                cursor. Successfully moved items are unyanked (and unmarked).
+                See |filemanager-selection| for a general overview.
+                Note that the `C` key is not immune to 'timeout'.
+
+                                                             *filemanager-r*
+r               Rename marked items. If nothing is marked or only one item is
+                marked, prompt for a new name (relative and absolute paths are
+                allowed). If multiple items are marked, print a tree
+                containing only marked items and enter rename mode (just like
+                |filemanager-R| but with this smaller tree).
+                Marked items outside the current tree are ignored.
+                Successfully renamed items are unmarked (and unyanked).
+                See |filemanager-selection| for a general overview.
+
+                                                             *filemanager-R*
+R               Rename files and directories in the tree directly by editing
+                lines in the buffer. All file and directory names in the
+                buffer can be freely modified (including relative paths).
+                Nothing highlighted as `NonText` should be changed.
+                No lines should be reordered or deleted.
+                <Enter> in normal and insert modes proceeds to rename.
+                The |:write| command also proceeds to rename.
+                <Esc> in normal mode cancels the operation.
+                All usual filemanager mappings and commands are disabled.
+                Successfully renamed items are unmarked and unyanked.
+                See |filemanager-treerename| for technical details.
+
+CTRL-N                                                  *filemanager-ctrl-n*
+<c-n>           Move cursor to the next marked item in the tree.
+                See |filemanager-selection| for a general overview.
+
+CTRL-P                                                  *filemanager-ctrl-p*
+<c-p>           Move cursor to the previous marked item in the tree.
+                See |filemanager-selection| for a general overview.
+
+b<Enter>                                *filemanager-benter* *filemanager-bcr*
+b<cr>           Print all bookmarks. Prints the name of each bookmark, its
+                tree root, unfolded directories, and whether the bookmark is
+                a backup one (|filemanager-backupbookmarks|).
+                See |filemanager-bookmarks| for an overview of functionality.
+
+                                                             *filemanager-b*
+b{name}         Restore bookmark {name}.
+                All keys on the keyboard are mapped this way (except |):
+
+                         `1234567890-=              ~!@#$%^&*()_+
+                          qwertyuiop[]\              QWERTYUIOP{}
+                          asdfghjkl;'                ASDFGHJKL:"
+                          zxcvbnm,./                 ZXCVBNM<>?
+
+                See |filemanager-bookmarkcontents| for what bookmarks store.
+                When a bookmark is restored, the current state is saved in
+                a backup bookmark (|filemanager-backupbookmarks|). Looking
+                through bookmarks doesn't generate multiple copies.
+                See |filemanager-bookmarks| for an overview of functionality.
+                Note that the `b` key is not immune to 'timeout'.
+
+                                                             *filemanager-B*
+B{name}         Save the current state to bookmark {name}.
+                See |filemanager-b| for mapped keys.
+                See |filemanager-bookmarkcontents| for what bookmarks store.
+                See |filemanager-bookmarks| for an overview of functionality.
+                Note that the `B` key is not immune to 'timeout'.
+
+<Enter>                               *filemanager-c_enter* *filemanager-c_cr*
+<cr>            In command-line mode, <cr> is mapped to apply special
+                formatting to the command line. The following elements are
+                substituted:
+                        <marked>    ->    list of marked items
+                        <yanked>    ->    list of yanked items
+                        <cursor>    ->    item under the cursor
+                        <less>      ->    less-than symbol (<)
+                Similar to <lt> in mappings, <less> can be used to type these
+                strings literally. For example, `<less>marked>`.
+                These special strings are meant to be used only in shell
+                commands.
+                After the shell command is finished, non-existent paths are
+                removed from the marked and yanked lists. For example,
+                `:! cp <marked> somedir` would not unmark everything, while
+                `:! mv <marked> somedir` would. However, copying and moving
+                items is best performed by dedicated mappings.
+                See |filemanager-processcmdline| for technical details.
+
+                                                         *filemanager-mouse*
+<2-leftmouse>   Left mouse button double click: acts like |filemanager-cr|.
+                Only when mouse is enabled (|filemanager-enablemouse|).
+                This is the only current mouse mapping.
+
+
+==============================================================================
+3. Commands                                             *filemanager-commands*
+
+  `Command             Action                         Link`
+
+  `-------------------------- Global commands -------------------------`
+  :L :V :H            Place & resize primary window  |filemanager-L|
+  :L :V :H {dir}      Open {dir} in new window       |filemanager-L|
+  :L! :V! :H! {dir}   Open {dir} in new or existing  |filemanager-L|
+  :L! :V! :H!         Close primary window           |filemanager-L|
+  `----------------------- Buffer-local commands ----------------------`
+  :Mark               Print marked items             |filemanager-Mark|
+  :Yank               Print yanked items             |filemanager-Yank|
+  :GMark              Print marked items             |filemanager-GMark|
+  :GYank              Print yanked items             |filemanager-GYank|
+  :Mark[!] {pat}      (Un)Mark items by regex {pat}  |filemanager-Mark|
+  :Yank[!] {pat}      (Un)Yank items by regex {pat}  |filemanager-Yank|
+  :GMark[!] {glob}    (Un)Mark items by glob {glob}  |filemanager-GMark|
+  :GYank[!] {glob}    (Un)Yank items by glob {glob}  |filemanager-GYank|
+  :Filter[!] {pat}    Filter tree by regex {pat}     |filemanager-Filter|
+  :GFilter[!] {glob}  Filter tree by glob {glob}     |filemanager-GFilter|
+  :Filter[!]          Remove last filter (or all)    |filemanager-Filter|
+  :GFilter[!]         Remove last filter (or all)    |filemanager-GFilter|
+  :Bookmark           Print all bookmarks            |filemanager-Bookmark|
+  :Bookmark {name}    Restore bookmark {name}        |filemanager-Bookmark|
+  :Bookmark! {name}   Save state to bookmark {name}  |filemanager-Bookmark|
+  :Bookmark write     Write bookmarks to file        |filemanager-Bookmark|
+  :Bookmark load      Load bookmarks from file       |filemanager-Bookmark|
+ :Delbookmark {name}  Delete local bookmark {name}   |filemanager-Delbookmark|
+ :Delbookmark! {name} -- local and from file         |filemanager-Delbookmark|
+ :Delbookmark!        Delete all local bookmarks     |filemanager-Delbookmark|
+ :Delbookmark file    Delete all bookmarks from file |filemanager-Delbookmark|
+ :Delbookmark! file   -- all local and from file     |filemanager-Delbookmark|
+
+
+:{count}L[!] [{dir}]                          *filemanager-:L* *filemanager-L*
+:{count}V[!] [{dir}]                          *filemanager-:V* *filemanager-V*
+:{count}H[!] [{dir}]                          *filemanager-:H* *filemanager-H*
+                No bang and no argument: set orientation of the primary
+                filemanager window and resize it (|filemanager-placement|).
+                If there was no filemanager window, open one in the current
+                directory.
+                No bang, with argument: open directory {dir} in a new
+                filemanager window. Act like there is no argument if a window
+                already exists.
+                With bang and argument: open directory {dir} in the primary
+                filemanager window. Open a new window if there was none.
+                With bang, no argument: close the primary filemanager window.
+                When {count} is specified, set filemanager window size for
+                the current primary buffer. To set the default size, use
+                |filemanager-winsize|.
+                :L and :V set vertical orientation while :H sets horizontal.
+                The orientation and window size are saved on exit
+                (|filemanager-tabvars|).
+                If the only visible filemanager buffers are auxiliary, these
+                commands choose one of them (oldest) and make primary.
+                These commands are global.
+
+                                        *filemanager-:Mark* *filemanager-Mark*
+:Mark[!] [{pat}]
+                No argument: print all currently marked items.
+                With argument and no bang: mark items matching {pat}.
+                With argument and bang: unmark items matching {pat}.
+                The regex {pat} is matched against the last parts of path
+                relative to the tree root. See |filemanager-filterpat| for
+                details.
+                Only items visible in the current tree are considered.
+                See |filemanager-selection| for a general overview.
+
+                                      *filemanager-:GMark* *filemanager-GMark*
+:GMark[!] [{glob}]
+                No argument: print all currently marked items.
+                With argument and no bang: mark items matching {glob}.
+                With argument and bang: unmark items matching {glob}.
+                The glob {glob} is matched against the last parts of path
+                relative to the tree root. See |filemanager-globbing| for
+                details.
+                Only items visible in the current tree are considered.
+                See |filemanager-selection| for a general overview.
+
+                                        *filemanager-:Yank* *filemanager-Yank*
+:Yank[!] [{pat}]
+                No argument: print all currently yanked items.
+                With argument and no bang: yank items matching {pat}.
+                With argument and bang: unyank items matching {pat}.
+                The regex {pat} is matched against the last parts of path
+                relative to the tree root. See |filemanager-filterpat| for
+                details.
+                Only items visible in the current tree are considered.
+                See |filemanager-selection| for a general overview.
+
+                                      *filemanager-:GYank* *filemanager-GYank*
+:GYank[!] [{glob}]
+                No argument: print all currently yanked items.
+                With argument and no bang: yank items matching {glob}.
+                With argument and bang: unyank items matching {glob}.
+                The glob {glob} is matched against the last parts of path
+                relative to the tree root. See |filemanager-globbing| for
+                details.
+                Only items visible in the current tree are considered.
+                See |filemanager-selection| for a general overview.
+
+                                    *filemanager-:Filter* *filemanager-Filter*
+:Filter[!] [{pat}]
+                With argument and no bang: add {pat} to filter tree contents:
+                print only items matching {pat}.
+                With argument and bang: add {pat} to filter tree contents
+                exclusively: hide items matching {pat}.
+                Any number of nested, consecutive filters can be specified.
+                No argument and no bang: remove last applied filter.
+                No argument, with bang: remove all filters.
+                The regex {pat} is matched against the last parts of path
+                relative to the tree root. See |filemanager-filterpat| for
+                details.
+                See |filemanager-filters| for an overview of functionality.
+
+                                  *filemanager-:GFilter* *filemanager-GFilter*
+:GFilter[!] [{glob}]
+                With argument and no bang: add {glob} to filter tree contents:
+                print only items matching {glob}.
+                With argument and bang: add {glob} to filter tree contents
+                exclusively: hide items matching {glob}.
+                Any number of nested, consecutive filters can be specified.
+                No argument and no bang: remove last applied filter.
+                No argument, with bang: remove all filters.
+                The glob {glob} is matched against the last parts of path
+                relative to the tree root. See |filemanager-globbing| for
+                details.
+                See |filemanager-filters| for an overview of functionality.
+
+                                *filemanager-:Bookmark* *filemanager-Bookmark*
+:Bookmark[!] [{name}]
+                No argument: print all bookmarks. Prints the name of each
+                bookmark, its tree root, its unfolded directories, and whether
+                the bookmark is a backup one (|filemanager-backupbookmarks|).
+                Argument is `write` or `load`: write local bookmarks to file
+                or load bookmarks from file (|filemanager-bookmarkfile|).
+                Argument is `file`: do nothing.
+                With argument and no bang: restore bookmark {name}.
+                With argument and bang: save current state to bookmark {name}.
+                Any string can serve a bookmark name.
+                This command has argument completion.
+                See |filemanager-bookmarkcontents| for what bookmarks store.
+                When a bookmark is restored, the current state is saved in
+                a backup bookmark (|filemanager-backupbookmarks|). Looking
+                through bookmarks doesn't generate multiple copies.
+                `write` and `load` don't erase bookmarks undefined in
+                either the current session or file.
+                `write`, `load`, and `file` serve as valid bookmark names when
+                |filemanager-usebookmarkfile| is false.
+                See |filemanager-bookmarks| for an overview of functionality.
+
+                          *filemanager-:Delbookmark* *filemanager-Delbookmark*
+:Delbookmark[!] [{name}]
+                No argument and no bang: do nothing.
+                No argument, with bang: delete all bookmarks from the current
+                session.
+                Argument is `file`, no bang: delete all bookmarks from file
+                (|filemanager-bookmarkfile|).
+                Argument is `file`, with bang: delete all bookmarks from the
+                current session and file.
+                Argument is `write` or `load`: do nothing.
+                With argument and no bang: delete bookmark {name} from the
+                current session. Useful to not overwrite an existing different
+                bookmark {name} in the bookmark file.
+                With argument and bang: delete bookmark {name} from the
+                current session and file. Useful to get rid of bookmark {name}
+                completely. Do this for all running Vim processes.
+                Any string can serve a bookmark name.
+                This command has argument completion.
+                See |filemanager-bookmarkcontents| for what bookmarks store.
+                `write`, `load`, and `file` serve as valid bookmark names when
+                |filemanager-usebookmarkfile| is false.
+                See |filemanager-bookmarks| for an overview of functionality.
+
+
+==============================================================================
+4. Configuration                                   *filemanager-configuration*
+
+filemanager reads several global variables or uses corresponding defaults.
+The variables are read on Vim startup, so run time changes have no effects.
+
+        `Group                                   Link`
+
+        filemanager window placement            |filemanager-placement|
+        Buffer configuration and defaults       |filemanager-bufconfig|
+        Sorting configuration                   |filemanager-sorting|
+        Bookmark configuration                  |filemanager-bookmarkconfig|
+
+
+*g:loaded_filemanager*                                  *filemanager-loaded*
+                As advised by |write-plugin|, filemanager uses a global
+                variable to let the user disable it. If this variable exists
+                at the moment of loading the filemanager script, the plugin is
+                never loaded.
+
+
+                                                      *filemanager-geometry*
+4.1. filemanager window placement                    *filemanager-placement*
+                Several variables configure the default placement and size of
+                filemanager windows: |filemanager-winsize|,
+                |filemanager-vertical|, |filemanager-alwaysfixwinsize|,
+                |filemanager-preferleft|, |filemanager-preferbelow|.
+
+                                   *filemanager_winsize* *filemanager-winsize*
+*g:filemanager_winsize*         Number, from 1 to 99. Default: 20
+                Default filemanager window size in percent of terminal
+                lines/columns.
+                Can be changed locally by {count} in |filemanager-L|.
+                Local changes are saved on exit (|filemanager-tabvars|).
+
+                                                   *filemanager-orientation*
+                                 *filemanager_vertical* *filemanager-vertical*
+*g:filemanager_vertical*        Boolean (or number 0 or 1). Default: true
+                Default orientation of filemanager windows. True for vertical,
+                false for horizontal.
+                Can be changed locally by the `:L :V :H` commands
+                (|filemanager-L|).
+                Local changes are saved on exit (|filemanager-tabvars|).
+
+                                              *filemanager_alwaysfixwinsize*
+                                              *filemanager-alwaysfixwinsize*
+*g:filemanager_alwaysfixwinsize*  Boolean (or number 0 or 1). Default: true
+                Always fix filemanager window width/height ('winfixwidth',
+                'winfixheight') during buffer initialization. When false, only
+                fix window geometry by the `:L :V :H` commands
+                (|filemanager-L|).
+                Width is fixed for vertical orientation and height for
+                horizontal.
+                Note: geometry of auxiliary buffers is never fixed.
+
+                             *filemanager_preferleft* *filemanager-preferleft*
+*g:filemanager_preferleft*      Boolean (or number 0 or 1). Default: true
+                Place filemanager windows to the left of other windows when
+                orientation is vertical (|filemanager-orientation|).
+                When false, place to the right.
+
+                           *filemanager_preferbelow* *filemanager-preferbelow*
+*g:filemanager_preferbelow*     Boolean (or number 0 or 1). Default: true
+                Place filemanager windows below other windows when orientation
+                is horizontal (|filemanager-orientation|).
+                When false, place above.
+
+
+                                           *filemanager-bufferconfiguration*
+                                              *filemanager-bufconfiguration*
+                                                  *filemanager-bufferconfig*
+4.2. Buffer configuration and defaults               *filemanager-bufconfig*
+                Several variables configure filemanager buffers and some
+                defaults: |filemanager-opencmd|, |filemanager-enablemouse|,
+                |filemanager-settabdir|, |filemanager-defaultyes|,
+                |filemanager-alwaysexternal|, |filemanager-notifyoffilters|,
+                |filemanager-skipfilterdirs|, |filemanager-showhidden|,
+                |filemanager-respectgitignore|,
+                |filemanager-respectwildignore|, |filemanager-ignorecase|.
+
+                                   *filemanager_opencmd* *filemanager-opencmd*
+*g:filemanager_opencmd*         String. Default: "xdg-open"
+                The command used to open files in external programs.
+                Used in mappings |filemanager-x|, |filemanager-X|.
+
+                           *filemanager_enablemouse* *filemanager-enablemouse*
+*g:filemanager_enablemouse*     Boolean (or number 0 or 1). Default: true
+                Enable mouse mappings |filemanager-mouse|.
+
+                               *filemanager_settabdir* *filemanager-settabdir*
+*g:filemanager_settabdir*       Boolean (or number 0 or 1)
+                Default: opposite of 'autochdir' (its value during startup)
+                Set the tab-local current directory (|:tcd|) to the tree root.
+                Note: auxiliary filemanager buffers never set tab directory.
+
+                             *filemanager_defaultyes* *filemanager-defaultyes*
+*g:filemanager_defaultyes*      Boolean (or number 0 or 1). Default: false
+                Choose "yes" by default in prompts to delete bookmarks, create
+                directories outside the current tree, paste, move, overwrite
+                files and directories, and delete files.
+
+                                                *filemanager_alwaysexternal*
+                                                *filemanager-alwaysexternal*
+*g:filemanager_alwaysexternal*  String. Default: ""
+                Rules for always opening files in external programs.
+                Comma-separated list of regex patterns (use \, for literal ,).
+                Always case-sensitive. Patterns are matched against the last
+                parts of full paths (similar to |filemanager-filterpat|).
+                When a pattern matches the path to a file, the file is opened
+                using |filemanager-opencmd|.
+                Only the |filemanager-cr| mapping is affected.
+
+                                               *filemanager_notifyoffilters*
+                                               *filemanager-notifyoffilters*
+*g:filemanager_notifyoffilters*   Boolean (or number 0 or 1). Default: true
+                Always print a message whenever filters are applied.
+                See |filemanager-filters| for an overview of functionality.
+
+                                                *filemanager_skipfilterdirs*
+                                                *filemanager-skipfilterdirs*
+*g:filemanager_skipfilterdirs*    Number, 0 or higher. Default: 0
+                Default depth of directory immunity to filters. When 0, all
+                directories are subject to filters just like files. When 1 or
+                higher, only directories deeper than the value are allowed
+                to be hidden by filters like files.
+                Useful when contents of many (or all) directories are expected
+                to match (see |filemanager-filterimmunity| for more).
+                Can be changed locally by |filemanager-gd|.
+                Local changes are saved on exit (|filemanager-tabvars|).
+                See |filemanager-filters| for an overview of functionality.
+
+                             *filemanager_showhidden* *filemanager-showhidden*
+*g:filemanager_showhidden*      Boolean (or number 0 or 1). Default: true
+                Show hidden files (dot files) by default.
+                Can be changed locally by |filemanager-gh|.
+                Local changes are saved on exit (|filemanager-tabvars|).
+
+                                              *filemanager_respectgitignore*
+                                              *filemanager-respectgitignore*
+*g:filemanager_respectgitignore*    Boolean (or number 0 or 1). Default: true
+                Hide files ignored by Git by default.
+                Can be changed locally by |filemanager-gG|.
+                Local changes are saved on exit (|filemanager-tabvars|).
+
+                                             *filemanager_respectwildignore*
+                                             *filemanager-respectwildignore*
+*g:filemanager_respectwildignore*   Boolean (or number 0 or 1). Default: false
+                Hide files ignored by 'wildignore'. Keep in mind that some
+                ftplugin scripts modify 'wildignore'.
+
+                             *filemanager_ignorecase* *filemanager-ignorecase*
+*g:filemanager_ignorecase*      String. Default: ""
+                Ignore case during marking and filtering by default.
+                Affects :Filter, :Mark, :Yank, :GFilter, :GMark, :GYank
+                (|filemanager-commands|).
+                Format:           ""  --  obey 'ignorecase'
+                                "\c"  --  always ignore case
+                                "\C"  --  never ignore case
+                Can be changed locally by |filemanager-gi|.
+                Local changes are saved on exit (|filemanager-tabvars|).
+
+
+                                             *filemanager-sortconfiguration*
+                                                    *filemanager-sortconfig*
+4.3. Sorting configuration                             *filemanager-sorting*
+                Several variables configure how directories are sorted in the
+                filemanager tree: |filemanager-sortmethod|,
+                |filemanager-newestfirst|, |filemanager-sortorder|,
+                |filemanager-sortfunc|, |filemanager-sortrules|.
+
+                             *filemanager_sortmethod* *filemanager-sortmethod*
+*g:filemanager_sortmethod*      String. Default: "name"
+                Default sorting method. Only "name" or "time" are allowed.
+                Can be changed locally by |filemanager-S|.
+                Local changes are saved on exit (|filemanager-tabvars|).
+
+                           *filemanager_newestfirst* *filemanager-newestfirst*
+*g:filemanager_newestfirst*     Boolean (or number 0 or 1). Default: true
+                Default order when sorting by time. When false, place oldest
+                first.
+                Sorting order can be reversed locally by |filemanager-gr|.
+                Local changes are saved on exit (|filemanager-tabvars|).
+
+                               *filemanager_sortorder* *filemanager-sortorder*
+*g:filemanager_sortorder*       String. Default: "*/,*,.*/,.*"
+                Default pattern order for sorting by name.
+                Comma-separated list of regex patterns (use \, for literal ,).
+                Always case-sensitive. Directory names end with "/". Regular
+                files, symlinks, etc. all end with their normal names.
+                Only names are matched -- no relative paths are allowed.
+                Items not matched by any pattern are placed according to four
+                special elements:
+                        *       marks the position for files
+                        */      marks the position for directories
+                                fallback: *
+                        .*      marks the position for dot files
+                                fallback: *
+                        .*/     marks the position for dot directories
+                                fallback: .*, then */, then *
+                If "*" is not present, unmatched items are placed last.
+                Can be changed locally by |filemanager-gS|.
+                Local changes are saved on exit (|filemanager-tabvars|).
+                For example, to sort .c files first (after directories) and
+                object files, backups, swaps, and the __pycache__ directory
+                last, use
+                   "*/,\\.c$,*,.*/,.*,\\.o$,\\.bak$,\\.swp$,^__pycache__/$"
+
+                                 *filemanager_sortfunc* *filemanager-sortfunc*
+*g:filemanager_sortfunc*        String. Default: ""
+                Parameter passed to Vim's |sort()| function to sort items
+                within a pattern when sorting by name. Also used when printing
+                bookmarks and suggesting bookmark names. Also used when
+                printing files and directories to paste or delete.
+                See |sort()| for correct values.
+                See |filemanager-sortorder| for pattern order.
+
+                               *filemanager_sortrules* *filemanager-sortrules*
+*g:filemanager_sortrules*       Dictionary of strings. Default: {}
+                Special sorting rules based on directory path.
+                Keys are regex patterns and are matched against the last parts
+                of full path to a directory. The path has no trailing "/".
+                Matching is the same as |filemanager-filterpat| but always
+                case-sensitive.
+                Values are one of the following:
+                  name:sortorder  always sort by name and use the sort order
+                  obey:sortorder  when sorting by name, use the sort order
+                  time:newest     always sort by time, newest first
+                  time:oldest     always sort by time, oldest first
+                  name            always sort by name with the common order
+                  time            always sort by time with the default order
+                See |filemanager-sortorder| for sort order format.
+                See |filemanager-newestfirst| for the default sort order for
+                sorting by time.
+                This is useful, for example, to always sort downloads by time:
+                        {"/Downloads$": "time"}
+                or sort .tex files first in all ~/.../tex/... directories:
+                        {"/tex/.*": "obey:*/,\\.tex$,*,.*/,.*"}
+
+
+                                         *filemanager-bookmarkconfiguration*
+4.4. Bookmark configuration                     *filemanager-bookmarkconfig*
+                Several variables configure how bookmarks are saved:
+                |filemanager-bookmarkonbufexit|,
+                |filemanager-usebookmarkfile|,
+                |filemanager-writeshortbookmarks|,
+                |filemanager-writebackupbookmarks|.
+
+                                             *filemanager_bookmarkonbufexit*
+                                             *filemanager-bookmarkonbufexit*
+*g:filemanager_bookmarkonbufexit*   Boolean (or number 0 or 1). Default: true
+                Create a backup bookmark whenever a primary filemanager buffer
+                is closed (|filemanager-backupbookmarks|).
+                See |filemanager-bookmarkcontents| for what bookmarks store.
+                See |filemanager-bookmarks| for an overview of functionality.
+
+                                                      *filemanagerbookmarks*
+                                               *filemanager_usebookmarkfile*
+                                               *filemanager-usebookmarkfile*
+*g:filemanager_usebookmarkfile*     Boolean (or number 0 or 1). Default: true
+                Save bookmarks in a file to store them between Vim sessions.
+                The file is loaded on Vim startup and written on Vim exit.
+                The rest should be controlled by the user via :Bookmark
+                `write` and `load` (|filemanager-Bookmark|).
+                Writing and loading bookmarks doesn't erase bookmarks
+                undefined in either the current session or file.
+                Location of the file:
+                For Vim:    `~/.vim/.filemanagerbookmarks`
+                For Neovim: `stdpath("cache")/filemanagerbookmarks`
+                See |filemanager-bookmarkfile| for more details.
+                See |filemanager-bookmarks| for an overview of functionality.
+
+                                           *filemanager_writeshortbookmarks*
+                                           *filemanager-writeshortbookmarks*
+*g:filemanager_writeshortbookmarks* Boolean (or number 0 or 1). Default: true
+                Save short bookmarks to the bookmark file. Short bookmarks are
+                the ones for which mappings b{name}, B{name} are created
+                (|filemanager-b|). Long bookmarks are always saved as long as
+                |filemanager-usebookmarkfile| is true.
+                See |filemanager-bookmarkfile| for details on the file.
+                See |filemanager-bookmarks| for an overview of functionality.
+
+                                          *filemanager_writebackupbookmarks*
+                                          *filemanager-writebackupbookmarks*
+*g:filemanager_writebackupbookmarks* Boolean (or number 0 or 1) Default: false
+                Save backup bookmarks to the bookmark file.
+                Ignored when |filemanager-writeshortbookmarks| is false.
+                See |filemanager-backupbookmarks| for when backup bookmarks
+                are created.
+                See |filemanager-bookmarkfile| for details on the file.
+                See |filemanager-bookmarks| for an overview of functionality.
+
+
+==============================================================================
+5. File and directory selection                        *filemanager-selection*
+
+filemanager provides several independent ways of selecting items in the
+directory tree. They can be marked, yanked, or selected in the visual mode
+(see |filemanager-mark|, |filemanager-yank|, and |filemanager-visual| below).
+
+
+Mark files and directories                                  *filemanager-mark*
+
+Items can be marked locally to the buffer. Each filemanager buffer has its own
+list of marked items. Items are marked by their paths.
+
+To mark or unmark items in the tree, use the `i` and `I` mappings
+(|filemanager-i|, |filemanager-I|) and the `:Mark` and `:GMark` commands
+(|filemanager-Mark|, |filemanager-GMark|).
+
+filemanager provides the following mappings for actions with marked items:
+
+    Delete marked items                   |filemanager-D|, |filemanager-del|
+    Paste marked items under the cursor   |filemanager-p|, |filemanager-zp|
+    Move marked items under the cursor                   |filemanager-Cp|
+    Rename marked items                                  |filemanager-r|
+    Use marked items in an arbitrary shell command       |filemanager-c_cr|
+
+The `:Mark` and `:GMark` commands consider only items visible in the current
+directory tree. For example, if `/home/user/file` is marked but not visible
+because of filters, running `:Mark! .*` will not unmark it.
+
+Marked items are denoted by the `|+` depth marker in the directory tree.
+If an item is both marked and yanked, its depth marker is `|#`.
+
+
+Yank files and directories                                  *filemanager-yank*
+
+Items can be yanked globally for all filemanager buffers (within a Vim
+session). This way, the user can yank some files in one buffer and paste them
+in another. Items are yanked by their paths.
+
+To yank or unyank items in the tree, use the `y` and `Y` mappings
+(|filemanager-y|, |filemanager-Y|) and the `:Yank` and `:GYank` commands
+(|filemanager-Yank|, |filemanager-GYank|).
+
+filemanager provides the following mappings for actions with yanked items:
+
+     Delete yanked items                 |filemanager-zD|, |filemanager-s-del|
+     Paste yanked items under the cursor  |filemanager-P|, |filemanager-zP|
+     Move yanked items under the cursor                  |filemanager-CP|
+     Use yanked items in an arbitrary shell command      |filemanager-c_cr|
+
+The `:Yank` and `:GYank` commands consider only items visible in the current
+directory tree. For example, if `/home/user/file` is yanked but not visible
+because of filters, running `:Yank! .*` will not unyank it.
+
+Yanked items are denoted by the `|-` depth marker in the directory tree.
+If an item is both marked and yanked, its depth marker is `|#`.
+
+
+Visual mode selection                                     *filemanager-visual*
+
+Apart from marked and yanked items, filemanager handles visual selection
+independently. For example, visual selection can be used to delete some
+specific files when there are already some other items marked.
+
+filemanager provides the following mappings in the visual mode:
+
+    Delete selected items                   |filemanager-D|, |filemanager-del|
+    Yank selected items                     |filemanager-y|
+    Unyank selected items                   |filemanager-Y|
+    Mark/unmark selected items              |filemanager-i|
+
+For example, hitting `y` in the visual mode bypasses the list of marked items
+and yanks the selected ones.
+
+
+==============================================================================
+6. Filters                                               *filemanager-filters*
+
+Filters provide a way to control what items are visible in the directory tree
+to work with some specific files only.
+
+Filters are either regexes that are matched against the last parts of path
+relative to the tree root (see |filemanager-filterpat| below) or globs
+converted to regexes (see |filemanager-globbing| below). Both inclusive and
+exclusive filters are supported. Any number of consecutive filters can be
+specified.
+
+When filtering the directory tree, any directory the contents of which satisfy
+all the filters is shown as well as its filtered contents. However, as soon as
+the directory is folded, it becomes hidden (unless its path itself satisfies
+the filters). It will then remain inaccessible until filters are loosened
+enough.
+
+Filters are controlled using the `:Filter` and `:GFilter` commands
+(|filemanager-Filter|, |filemanager-GFilter|) and can be printed by the `gF`
+mapping (|filemanager-gF|).
+
+Filters can be configured to never hide directories up to a certain depth (see
+|filemanager-filterimmunity| below).
+
+To configure ignore case during pattern matching, use the `gi` mapping
+(|filemanager-gi|) and |filemanager-ignorecase|.
+
+By default, a message is printed whenever filters are applied to the directory
+tree. This can be changed by |filemanager-notifyoffilters|.
+
+
+                                                   *filemanager-filterpattern*
+Pattern matching for filters                           *filemanager-filterpat*
+
+The start and the end of regexes are altered. If a regex does not end with
+a "$", the string "[^/]*$" is appended to it. At the start of a pattern, a "^"
+is replaced with a "/". Unless the pattern starts with "^/", in which case the
+"^" is preserved. Repeated consecutive "/" are replaced with a single "/".
+
+The resulting regex is matched against paths relative to the tree root with
+a "/" prepended to them. This way, the supplied patterns are matched against
+the last parts of relative paths and can include path separators.
+
+A few examples:
+        abc             all files containing "abc" in their name
+        abc$            all files ending with "abc"
+        /abc            all files starting with "abc"
+        ^/abc           all files starting with "abc", but only in the tree
+                        root directory, not deeper
+        abc/def         all files starting with "def" located in directories
+                        ending with "abc"
+  abc[^/]*/[^/]*\.c$    all .c files located in directories containing "abc"
+      /src/[^/]*\.c$    all .c files located in all "src" directories
+   /projects/.*\.rs$    all .rs files in all "projects" directories and all
+                        their subdirectories, recursively
+        /report/.*      all contents of all "report" directories, recursively
+
+In many simple cases, it might be easier to use glob conversion instead
+(|filemanager-globbing|).
+
+This style of pattern matching is used by |filemanager-Filter|,
+|filemanager-Mark|, |filemanager-Yank|, |filemanager-alwaysexternal|,
+|filemanager-sortrules|.
+
+To configure ignore case during pattern matching, use the `gi` mapping
+(|filemanager-gi|) and |filemanager-ignorecase|.
+
+To give a more illustrative example, assume the directory tree has the
+following appearance:
+>
+        ../
+        directory/
+        | email/
+        | | file.pdf
+        | | file.txt
+        | | filewith-r.log
+        | paper/
+        | | file.pdf
+        | | file.txt
+        | report/
+        | | suppl/
+        | | | some.log
+        | | | some.pdf
+        | | file.pdf
+        | | file.txt
+        | file.pdf
+        | file.txt
+        | some.log
+<
+The regexes below would have the following matches:
+
+        directory/.*pdf         matches nothing
+        r/.*pdf$                matches paper/file.pdf
+        r/                      matches paper/file.pdf, paper/file.txt
+                                        but not paper itself
+        r.*/.*pdf$              matches paper/file.pdf, report/file.pdf,
+                                        report/suppl/some.pdf
+        r[^/]*/.*pdf$           same as r.*/.*pdf
+        r[^/]*/[^/]*pdf$        matches paper/file.pdf, report/file.pdf
+        l/[^/]*pdf$             matches email/file.pdf, report/suppl/some.pdf
+        \.txt$                  matches email/file.txt, paper/file.txt,
+                                        report/file.txt, file.txt
+        r                       matches email/filewith-r.log, paper, report
+        /some\.log$             matches report/suppl/some.log, some.log
+        ^some\.log$             same as /some\.log$
+        ^/some\.log$            matches only some.log
+
+
+Glob conversion                                         *filemanager-globbing*
+
+Alongside proper regex matching (|filemanager-filterpat|), filemanager
+provides glob conversion. The glob interpretation is similar to Vim auto
+commands (|autocmd-pattern|, |file-pattern|), but the "*" and "?" wildcards
+never match path separators. They also don't match dot files if located
+directly after a "/".
+
+Some unusual traits are not fixed, though:
+  *  "[^abc]" interpretation is not perfect:
+     -   "pic-[^abc].png"  would match  "pic-/.png"     use "[^abc/]" instead
+     -   "dir/[^abc]file"  would match  "dir/.file"     use "[^abc.]" instead
+  *  The double asterisk "**" acts the same as a single one "*".
+  *  Ranges in brackets are not expanded: "[a-d]" matches "a", "d", and "-",
+     not "a", "b", "c", "d".
+
+These are possibly not the only unusual traits of glob conversion to regex in
+Vim. For this reason, glob patterns are only supplementary to regex ones.
+
+Nonetheless, globs are very handy in simpler cases. The following expressions
+are all interpreted traditionally and match paths ending with them:
+
+       `include/*.h       pictures/*2004*.jp{,e}g      reports/*/*.pdf`
+       `main.{c,rs}       project/{*.md,doc/*.txt}     file-[0123].txt`
+
+If the supplied glob starts with "/", it is matched against the whole path
+relative to the tree root, not only the ending.
+
+To configure ignore case during pattern matching, use the `gi` mapping
+(|filemanager-gi|) and |filemanager-ignorecase|.
+
+This style of pattern matching is used by |filemanager-GFilter|,
+|filemanager-GMark|, |filemanager-GYank|. No glob alternatives are provided
+for |filemanager-alwaysexternal| and |filemanager-sortrules| since opening
+and sorting configuration should rather be reliable than quickly written.
+
+
+Directory immunity to filters                     *filemanager-filterimmunity*
+
+Directory immunity to filters provides another tool for filtering tree
+contents. While filters affect files and directories the same way by default,
+it is possible to skip filters altogether for some directories. This is useful
+when contents of many (or all) directories are expected to match.
+
+To give an example, assume the tree has the following appearance:
+>
+        ../
+        directory/
+        | email/
+        | paper/
+        | report/
+        | somethingelse/
+        | notpdf.txt
+<
+Each directory has many random files and a single .pdf file. It would be
+possible to unfold all the directories and apply a "pdf$" filter, but immunity
+to filters provides a simpler solution. One might set the immunity depth to
+1 and apply a "pdf$" filter without unfolding all the directories beforehand.
+The file notpdf.txt will be hidden while the four directories remain visible
+and able to be unfolded. Unfolding them one-by-one to look at the .pdf files
+is a simpler and faster solution compared to unfolding them all.
+
+Directory immunity to filters can be configured for the current buffer by the
+`gd` mapping (|filemanager-gd|) or globally by altering the default using
+|filemanager-skipfilterdirs|.
+
+
+==============================================================================
+7. Bookmarks                                           *filemanager-bookmarks*
+
+Bookmarks are a very powerful tool for saving the current state of
+a filemanager buffer to resume the work later. Bookmarks record every single
+buffer configuration option and the directory view
+(|filemanager-bookmarkcontents|).
+
+Bookmarks are automatically written to a specific file on Vim exit and loaded
+again at Vim startup (|filemanager-bookmarkfile|).
+
+Bookmarks can be saved and restored using the b{name} and B{name} mappings
+(|filemanager-b|, |filemanager-B|) and the :Bookmark[!] {name} command
+(|filemanager-Bookmark|). The only way to delete bookmarks is by the
+`:Delbookmark` command (|filemanager-Delbookmark|), which requires typing the
+appropriate bookmark name explicitly. Any string can serve as a valid bookmark
+name.
+
+filemanager also saves backup bookmarks whenever primary filemanager buffers
+are closed and whenever a bookmark is restored
+(|filemanager-backupbookmarks|). This way, no previous state is ever lost.
+
+A typical use case of bookmarks would be to save a directory tree with several
+open directories, some filters, a finely configured sorting order, hidden dot
+files, and a specific filemanager orientation and window size.
+
+
+Bookmark contents                               *filemanager-bookmarkcontents*
+
+Bookmarks store every single buffer configuration option, filters, marked
+items, the tree root, open directories, and the cursor position. As for buffer
+options, the following ones are recorded:
+
+        Sort method (by name or time)              |filemanager-S|
+        Reverse sort order                         |filemanager-gr|
+        Using sorting rules                        |filemanager-gR|
+        Sort order for sorting by name             |filemanager-gS|
+        Ignore case during marking and filtering   |filemanager-gi|
+        Show hidden files (dot files)              |filemanager-gh|
+        Hide files ignored by Git                  |filemanager-gG|
+        Depth of directory immunity to filters     |filemanager-gd|
+        Size of filemanager window                 |filemanager-winsize|
+        Orientation of filemanager window          |filemanager-orientation|
+
+Bookmarks also record the default values for these settings if the local ones
+are not set. As a result, even if the global configuration has changed since
+saving a bookmark (|filemanager-configuration|), the bookmark will still have
+the same settings as it did at the time of recording. The only exception are
+custom sorting rules configured by |filemanager-sortrules|. This dictionary is
+not copied for bookmarks.
+
+It is also worth mentioning that the same set of buffer settings is saved in
+tab-local variables whenever a primary filemanager window is closed. See
+|filemanager-tabvars| for details on that.
+
+
+Backup bookmarks                                 *filemanager-backupbookmarks*
+
+filemanager automatically saves backup bookmarks to never lose any previous
+state. Such bookmarks are always saved when a bookmark is restored. They are
+also saved whenever a primary filemanager buffer is closed if
+|filemanager-bookmarkonbufexit| is true.
+
+Looking through bookmarks doesn't generate multiple copies of them in the form
+of backups. If the current state comes purely from an existing bookmark that
+has just been restored (no directories have been folded/unfolded, no files
+marked, etc.), then a backup is not created.
+
+Backup bookmarks occupy the same "short names" for which the b{name} and
+B{name} mappings are created (|filemanager-b|).
+
+The order is:  '"0123456789qwertyuiopasdfghjklzxcvbnm
+               QWERTYUIOPASDFGHJKLZXCVBNM[]{};:,.<>/?
+               \!@#$%^&*()-_=+`~ 
+
+When a backup bookmark is to be saved, existing backup bookmarks are shifted
+by one place, and the new bookmark is saved to the first name not occupied by
+a user bookmark (which is usually ').
+
+Bookmarks defined by the user are never shifted or overridden by backup ones.
+
+When printed by the b<cr> mapping (|filemanager-bcr|) or the `:Bookmark`
+command (|filemanager-Bookmark|), backup bookmarks are denoted by `bak`
+prepended to their names.
+
+By default, backup bookmarks are not written to the bookmark file. To change
+it, use |filemanager-writebackupbookmarks|.
+
+
+Bookmark storage                                    *filemanager-bookmarkfile*
+
+filemanager saves bookmarks in a specific file to store them between separate
+Vim sessions or share them between parallel ones. The bookmark file is used
+only when |filemanager-usebookmarkfile| is true. Its location is
+                 `~/.vim/.filemanagerbookmarks`         for Vim
+        `stdpath("cache")/filemanagerbookmarks`         for Neovim
+
+filemanager automatically writes bookmarks on Vim exit and loads them at Vim
+startup.
+
+Sharing new bookmarks between running Vim sessions should be performed by the
+user. To do that, run `:Bookmark write` in the session with the desired
+bookmarks and `:Bookmark load` in all other sessions.
+
+When the bookmark file is used, the following words are reserved for
+operations with it: "file", "load", and "write". They are therefore
+unavailable as regular bookmark names.
+
+filemanager provides two options to configure what is saved in the bookmark
+file: |filemanager-writeshortbookmarks|, |filemanager-writebackupbookmarks|.
+When |filemanager-writeshortbookmarks| is true, bookmarks with short names are
+written to the file. Short names are the ones for which the mappings b{name}
+and B{name} are created (|filemanager-b|).
+If |filemanager-writebackupbookmarks| is also true, backup bookmarks are
+written as well (|filemanager-backupbookmarks|).
+Backup bookmarks are never written when short bookmarks are not.
+
+When the format of bookmarks changes with updates, filemanager automatically
+converts old bookmarks (loaded from the file) into the new format.
+
+
+==============================================================================
+8. Renaming by editing tree                           *filemanager-treerename*
+
+Bulk rename is an essential feature of any respectful file manager.
+filemanager goes one step further and allows renaming files directly by
+editing lines of the directory tree. Not only does this offer the ultimate
+convenience of your personal Vim setup, it also provides a very familiar
+interface since you edit the directory tree precisely as you see it.
+
+During tree rename, any file or directory name can be freely modified,
+including relative paths. Characters are read as plain strings, nothing should
+be escaped.
+
+filemanager relies on several `NonText` components of each line to reconstruct
+paths from buffer lines. The user should never change any characters
+highlighted as `NonText`. They are located at the start and the end of each
+line.
+
+The user should not add, delete, or reorder lines in the buffer, either.
+
+To proceed to rename after editing the buffer, hit <Enter> in normal or
+insert modes. Alternatively, run |:write|. To cancel the operation, hit <Esc>
+in normal mode. Usual filemanager mappings and commands are disabled.
+
+Marked and yanked items that have been successfully renamed are unmarked
+and unyanked.
+
+The user can also leave the filemanager buffer and continue renaming
+afterwards. The tree will not be changed, refreshed, or reprinted without
+an explicit request.
+
+To rename files by editing the directory tree, use the `r` and `R` mappings
+(|filemanager-r|, |filemanager-R|).
+
+It should be noted, however, that patterns like "txt$" do not work correctly
+with filemanager line formatting and should not be used for substitutions or
+other actions. This is because of file type indicators and a special separator
+character found at the end of each line.
+
+
+==============================================================================
+9. Primary and auxiliary buffers                       *filemanager-auxiliary*
+                                                         *filemanager-primary*
+
+There are two types of filemanager buffers: primary and auxiliary ones. There
+may be only one primary buffer per tab and any number of auxiliary buffers.
+The only differences between these types of buffers are the following.
+
+1. Auxiliary buffers are allowed to change only their own windows.
+   Mappings |filemanager-cr|, |filemanager-v|, |filemanager-o|,
+            |filemanager-O|,  |filemanager-s|, |filemanager-a|,
+            |filemanager-f|,  |filemanager-F|, |filemanager-T|,
+            |filemanager-U|
+   all result in replacing the filemanager window (thus closing its buffer).
+
+2. Only primary buffers can set tab-local current directories when
+   |filemanager-settabdir| is true.
+
+3. Only primary buffers are controlled by the `:L :V :H` commands
+   (|filemanager-L|).
+
+4. Window geometry is fixed only for primary buffers
+   (see |filemanager-placement|).
+
+5. Only primary buffers save their settings in tab-local variables
+   (|filemanager-tabvars|). However, all buffers read them.
+
+6. Only primary buffers are saved in backup bookmarks on exit when
+   |filemanager-bookmarkonbufexit| is true.
+
+All other mappings and commands are exactly the same for primary and auxiliary
+buffers. This makes auxiliary buffers useful for managing files. For exmple,
+renaming, marking and yanking, deleting, pasting, moving, etc.
+
+As a tiny bonus, auxiliary buffers provide a more interactive way of selecting
+files to open, if that's what the user wants.
+
+A typical use case of auxiliary buffers would be to have the main directory
+open in a primary buffer and perform some quick file operations in another
+directory using an auxiliary buffer. Another example is to yank items using an
+auxiliary buffer and paste them to the main directory in the primary buffer.
+
+
+==============================================================================
+10. Technical details                                  *filemanager-technical*
+
+        `Subject                                 Link`
+
+        Buffer name                             |filemanager-bufname|
+        Auto commands                           |filemanager-autocmds|
+        Tab-local variables                     |filemanager-tabvars|
+        Refreshing directory contents           |filemanager-refresh|
+        Special command line formatting         |filemanager-processcmdline|
+        Handling old bookmarks                  |filemanager-oldbookmarks|
+        Depth marker and separator              |filemanager-separator|
+        filemanager language                    |filemanager-vimscript|
+
+
+                            *filemanager-buffer-name* *filemanager-buffername*
+10.1. Buffer name                                      *filemanager-bufname*
+
+filemanager buffers are configured as 'buftype'=acwrite so that independent
+buffers with the same directory are allowed. For this reason, filemanager sets
+its own buffer name using the |:file_f| command.
+
+filemanager buffer names have the following format:
+
+        `[filemanager:N[:AUX][:RENAME]] /path/to/tree/root/`
+
+where
+         `N` is the filemanager buffer number and is required for uniqueness,
+      `:AUX` is included only when the filemanager buffer is auxiliary,
+   `:RENAME` is included only during tree rename (|filemanager-treerename|).
+
+
+                                                  *filemanager-autocommands*
+10.2. Auto commands                                   *filemanager-autocmds*
+
+filemanager defines several global auto commands and several buffer-local ones
+only for filemanager buffers. They are all defined under the filemanager
+augroup.
+
+Global auto commands:
+
+        |VimEnter|      Clear |FileExplorer| augroup (disable |netrw|)
+        |VimEnter|      Initialize buffer if it's a directory
+        |BufEnter|      Initialize buffer if it's a directory
+        |VimEnter|      Load bookmarks from file (silently)
+        |VimLeavePre|   Write bookmarks to file (notify of errors)
+
+Bookmarks are loaded and written only when |filemanager-usebookmarkfile| is
+true.
+
+Auto commands defined for filemanager buffers:
+
+        |BufReadCmd|    Initialize buffer from scratch
+        |BufEnter|      Refresh tree (|filemanager-refresh|)
+        |BufUnload|     Save buffer configuration in tab-local variables
+                      Also save a backup bookmark
+        |ShellCmdPost|  Refresh and print tree (to show relevant file rights)
+        |CmdlineEnter|  Set local current directory to tree root
+        |BufWriteCmd|   Proceed to rename. See |filemanager-treerename|
+        |ShellCmdPost|  Momentary actions. See |filemanager-processcmdline|
+
+|BufUnload| saves a backup bookmark only when |filemanager-bookmarkonbufexit|
+is true and when the filemanager buffer is primary.
+
+See |filemanager-tabvars| below for tab-local variables.
+
+The |CmdlineEnter| auto command sets the local current directory to the tree
+root only when 'autochdir' is on. When it is off, filemanager clears the
+possible buffer-local current directory that might have been set by mappings.
+
+The |BufReadCmd| auto command is executed when the user runs |:edit| with no
+arguments. The filemanager buffer is properly closed and initialized again. If
+it was primary, its buffer settings are restored (see |filemanager-tabvars|).
+
+The local |BufEnter| and |ShellCmdPost| auto commands are removed during tree
+rename and brought back after renaming (|filemanager-treerename|).
+
+
+                                                  *filemanager-tabvariables*
+10.3. Tab-local variables                              *filemanager-tabvars*
+
+filemanager always tries to save as much user configuration as possible. Apart
+from backup bookmarks (|filemanager-backupbookmarks|), filemanager saves
+buffer settings of primary buffers in tab-local variables. The same set of
+options is saved as in bookmarks (|filemanager-bookmarkcontents|), namely
+
+        Sort method (by name or time)              |filemanager-S|
+        Reverse sort order                         |filemanager-gr|
+        Using sorting rules                        |filemanager-gR|
+        Sort order for sorting by name             |filemanager-gS|
+        Ignore case during marking and filtering   |filemanager-gi|
+        Show hidden files (dot files)              |filemanager-gh|
+        Hide files ignored by Git                  |filemanager-gG|
+        Depth of directory immunity to filters     |filemanager-gd|
+        Size of filemanager window                 |filemanager-winsize|
+        Orientation of filemanager window          |filemanager-orientation|
+
+The difference between tab-local variables and backup bookmarks is that while
+the latter store more information, the former are automatically loaded during
+buffer initialization. This allows the user to close all filemanager buffers
+on the screen temporarily and then open filemanager once again to return to
+a very similar state.
+
+
+10.4. Refreshing directory contents                    *filemanager-refresh*
+
+filemanager records modification times of all unfolded directories and
+automatically refreshes changed directories on |BufEnter| events. Since
+modification times of directories are only changed when new files are added or
+old ones removed, refreshing the tree is not enough to represent changes in
+file rights (executable or not). To fix this issue, filemanager defines an
+auto command on |ShellCmdPost| to refresh and reprint the directory tree. This
+event is triggered only for the filemanager buffer from which the shell
+command has been executed. For more information on filemanager auto commands,
+see |filemanager-autocmds|.
+
+One inevitable flaw of this approach with timestamps is the fact that they are
+expressed in seconds. So changes that happen within less than a second from
+each other cannot be tracked and are lost.
+
+The tree can also be refreshed manually in a similar fashion (based on
+timestamps) by CTRL-L (|filemanager-ctrl-l|). Or it can be refreshed
+unconditionally by CTRL-R (|filemanager-ctrl-r|) or hitting <Enter> on the
+second line (|filemanager-cr|).
+
+
+10.5. Special command line formatting           *filemanager-processcmdline*
+
+<Enter> in command-line mode in filemanager buffers is mapped to apply special
+formatting to the command line. The following elements are substituted:
+
+                <marked>    ->    list of marked items
+                <yanked>    ->    list of yanked items
+                <cursor>    ->    item under the cursor
+                <less>      ->    less-than symbol (<)
+
+<less> can be used to type these strings literally. Example: `<less>marked>`.
+<less> is used instead of <lt> to avoid overlaps with Vim syntax.
+<cursor> is used instead of <cfile> for the same reason.
+
+These substitutions are ment to be used only in shell commands. When the shell
+command is finished, the marked and yanked lists are cleared of non-existent
+paths. For example, `:! cp <marked> somedir` would not unmark everything,
+while `:! mv <marked> somedir` would. However, moving and copying items is
+best performed by dedicated mappings.
+
+filemanager also modifies command-line history. It adds the original,
+user-typed, un-expanded version of the command line to the history and removes
+the expanded one, which is generated by filemanager.
+
+Special formatting is always applied to the command line, not only when it
+contains a "!", since the user may want to use it in custom Vim command that
+result in shell commands.
+
+There are some possible bugs associated with history deletion. In order to
+delete the expanded command line version generated by filemanager, an auto
+command is created. The auto command compares the latest entry in the history
+and deletes it if it matches the expanded version. filemanager cannot use
+|CmdlineLeave| events for this action as they are triggered before leaving the
+command line (when the generated line has not yet been executed and added to
+the history). So |ShellCmdPost| is used as a workaround. This leaves room for
+two types of bugs, the second of which would be unavoidable even if Vim
+provided an auto command event triggered after leaving the command line.
+
+    * The command typed by the user is mistakenly removed from the history if
+      there was a command of which the expanded version perfectly matches the
+      current command and
+      - that expanded version didn't result in a shell command,
+      - now, the same command does result in a shell command.
+      This very specific situation occurs in the following example:
+>
+          :command! -nargs=1  Testcommand  echo <q-args>
+          :Testcommand <cursor>
+          ^ Expanded to :Testcommand '/path/to/item/under/cursor'
+          :command! -nargs=1  Testcommand  !echo <args>
+          :Testcommand '/path/to/item/under/cursor'
+          ^ Nothing to expand. Typed by the user
+<
+    * An older command typed by the user is mistakenly removed from the
+      history if it matches the expanded version of the current command.
+      An example situation:
+>
+          :! cp '/path/to/item/under/cursor' somedir
+          ^ Nothing to expand. Typed by the user
+          :! cp <cursor> somedir
+          ^ Expanded to :! cp '/path/to/item/under/cursor' somedir
+<
+
+                                               *filemanager-fixoldbookmarks*
+                                                  *filemanager-fixbookmarks*
+10.6. Handling old bookmarks                      *filemanager-oldbookmarks*
+
+The list of variables saved in bookmarks may change with updates of
+filemanager. Such changes make restoring old bookmarks directly incorrect. To
+handle this issue, filemanager uses a separate function that compares the
+bookmarks loaded from the file with the current format and adds missing
+elements or makes other relevant changes. filemanager uses an unambiguous
+identifier of the version of bookmarks: a number contained in the empty "" key
+of the dictionary of bookmarks. The presence of this key should not affect the
+functionality since it is impossible to save, restore, or delete a bookmark
+with an empty name.
+
+
+                               *filemanager-s:depthstr* *filemanager-depthstr*
+                              *filemanager-s:separator* *filemanager-s:seppat*
+                                                 *filemanager-s:depthstrpat*
+10.7. Depth marker and separator                     *filemanager-separator*
+
+The design of filemanager allows arbitrary strings to be used as depth markers
+and the separator. The separator is used to separate the depth marker and the
+file type indicator from the file name. This way, if a file ends with an "*"
+for some very important reason, it will not be highlighted as executable.
+Unless, of course, it is indeed executable, in which case the reason behind
+such naming would be even more important.
+
+The depth markers and the separator are not completely arbitrary, though. The
+only requirement to them is to not overlap between each other and the file
+type indicators. For example, if the depth marker is "_" and the separator is
+"_" as well, files starting with "_" would be misinterpreted as being located
+one directory deeper than they actually are. Similarly, the separator cannot
+be any symbol already reserved for file type indicators.
+
+The list of file type indicators used by filemanager is the following:
+
+        /               directory
+        @               symbolic link
+        !@              missing (broken) symbolic link
+        =               socket
+        |               named pipe (fifo)
+        *               executable
+        empty           regular file
+
+So the separator may not be empty or equal to any of the following: @!=|*
+The "/" is allowed since file names never include it.
+
+The last limitation is that all depth markers are expected to be the same
+length.
+
+All the depth markers and the separator can be changed by editing the files
+plugin/filemanager.vim and syntax/filemanager.vim. The following variables are
+relevant:
+
+        s:depthstr              depth marker for neither marked nor yanked
+        s:depthstrmarked        depth marker for marked items
+        s:depthstryanked        depth marker for yanked items
+        s:depthstrmarknyanked   depth marker for items both marked and yanked
+        s:depthstrpat           regex matching all depth markers
+        s:depthstronlypat       regex matching only s:depthstr
+        s:depthstrmarkedpat     regex matching both s:depthstrmarked
+                                               and s:depthstrmarknyanked
+        s:depthstryankedpat     regex matching only s:depthstryanked
+        s:separator             separator string
+        s:seppat                regex matching s:separator
+
+
+10.8. filemanager language           *filemanager-vimscript* *filemanager-lua*
+
+filemanager is written in vimscript for two reasons. First, most matches,
+sorting, listings, and other stuff are performed using Vim functions anyway.
+Second, the benefits of using Lua, let alone Python, do not overweight the
+downside of leaving out vanilla Vim users.
+
+This is not a final decision, though. If there are some considerable speed or
+memory benefits of abandoning vimscript, I will try to implement the same
+functionality in Lua.
+
+
+==============================================================================
+vim:tw=78:ts=8:et:ft=help:norl:
