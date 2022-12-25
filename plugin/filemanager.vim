@@ -18,31 +18,31 @@ command! -bang -nargs=? -count=0 -complete=dir  H  call s:spawn(<q-args>, <bang>
 
 
 " Validity checked in s:checkconfig()
-let s:opencmd              = get(g:, 'filemanager_opencmd',      'xdg-open')
 let s:winsize              = get(g:, 'filemanager_winsize',              20)
-let s:preferleft           = get(g:, 'filemanager_preferleft',            1)
-let s:preferbelow          = get(g:, 'filemanager_preferbelow',           1)
 let s:vertical             = get(g:, 'filemanager_vertical',              1)
 let s:alwaysfixwinsize     = get(g:, 'filemanager_alwaysfixwinsize',      1)
+let s:preferleft           = get(g:, 'filemanager_preferleft',            1)
+let s:preferbelow          = get(g:, 'filemanager_preferbelow',           1)
+let s:opencmd              = get(g:, 'filemanager_opencmd',      'xdg-open')
 let s:enablemouse          = get(g:, 'filemanager_enablemouse',           1)
+let s:settabdir            = get(g:, 'filemanager_settabdir',   !&autochdir)
 let s:defaultyes           = get(g:, 'filemanager_defaultyes',            0)
 let s:alwaysexternal       = get(g:, 'filemanager_alwaysexternal',       '')
-let s:bookmarkonbufexit    = get(g:, 'filemanager_bookmarkonbufexit',     1)
-let s:usebookmarkfile      = get(g:, 'filemanager_usebookmarkfile',       1)
-let s:writebackupbookmarks = get(g:, 'filemanager_writebackupbookmarks',  0)
-let s:writeshortbookmarks  = get(g:, 'filemanager_writeshortbookmarks',   1)
 let s:notifyoffilters      = get(g:, 'filemanager_notifyoffilters',       1)
 let s:skipfilterdirs       = get(g:, 'filemanager_skipfilterdirs',        0)
-let s:settabdir            = get(g:, 'filemanager_settabdir',   !&autochdir)
 let s:showhidden           = get(g:, 'filemanager_showhidden',            1)
 let s:respectgitignore     = get(g:, 'filemanager_respectgitignore',      1)
 let s:respectwildignore    = get(g:, 'filemanager_respectwildignore',     0)
 let s:ignorecase           = get(g:, 'filemanager_ignorecase',           '')
 let s:sortmethod           = get(g:, 'filemanager_sortmethod',       'name')
 let s:newestfirst          = get(g:, 'filemanager_newestfirst',           1)
+let s:sortorder            = get(g:, 'filemanager_sortorder', '*/,*,.*/,.*')
 let s:sortfunc             = get(g:, 'filemanager_sortfunc',             '')
 let s:sortrules            = get(g:, 'filemanager_sortrules',            {})
-let s:sortorder            = get(g:, 'filemanager_sortorder', '*/,*,.*/,.*')
+let s:bookmarkonbufexit    = get(g:, 'filemanager_bookmarkonbufexit',     1)
+let s:usebookmarkfile      = get(g:, 'filemanager_usebookmarkfile',       1)
+let s:writeshortbookmarks  = get(g:, 'filemanager_writeshortbookmarks',   1)
+let s:writebackupbookmarks = get(g:, 'filemanager_writebackupbookmarks',  0)
 " The following lines must be the same as in syntax/filemanager.vim
 let s:depthstr = '| '
 let s:depthstrmarked = '|+'
@@ -1486,14 +1486,8 @@ fun! s:openexternal(path)  " {{{
 endfun  " }}}
 
 
-fun! s:statcmd(path)  " {{{
-	silent let l:output = system('stat '.shellescape(a:path, 0))
-	echo l:output
-endfun  " }}}
-
-
-fun! s:filecmd(path)  " {{{
-	silent let l:output = system('file '.shellescape(a:path, 0))
+fun! s:shellcmd(cmd, path)  " {{{
+	silent let l:output = system(a:cmd.' '.shellescape(a:path, 0))
 	echo substitute(l:output, '\n$', '', '')
 endfun  " }}}
 " }}}
@@ -2027,13 +2021,6 @@ fun! s:definemapcmdautocmd()  " {{{
 
 	" No need for <silent> with <cmd>
 	mapclear <buffer>
-	nnoremap <nowait> <buffer>  ,        zh
-	nnoremap <nowait> <buffer>  .        zl
-	nnoremap <nowait> <buffer>  <        zH
-	nnoremap <nowait> <buffer>  >        zL
-	nnoremap <nowait> <buffer>  f        <cmd>call <sid>openbyname(0)<cr>
-	nnoremap <nowait> <buffer>  F        <cmd>call <sid>openbyfind()<cr>
-	nnoremap <nowait> <buffer>  d        <cmd>call <sid>newdir()<cr>
 	nnoremap <nowait> <buffer>  <cr>     <cmd>call <sid>open(<sid>undercursor(1), 0)<cr>
 	nnoremap <nowait> <buffer>  v        <cmd>call <sid>open(<sid>undercursor(1), 1)<cr>
 	nnoremap <nowait> <buffer>  o        <cmd>call <sid>open(<sid>undercursor(1), 2)<cr>
@@ -2042,8 +2029,16 @@ fun! s:definemapcmdautocmd()  " {{{
 	nnoremap <nowait> <buffer>  s        <cmd>call <sid>open(<sid>undercursor(1), 5)<cr>
 	nnoremap <nowait> <buffer>  a        <cmd>call <sid>open(<sid>undercursor(1), 6)<cr>
 	nnoremap <nowait> <buffer>  E        <cmd>call <sid>open(<sid>undercursor(1), 7)<cr>
+	nnoremap <nowait> <buffer>  f        <cmd>call <sid>openbyname(0)<cr>
+	nnoremap <nowait> <buffer>  F        <cmd>call <sid>openbyfind()<cr>
+	nnoremap <nowait> <buffer>  x        <cmd>call <sid>openexternal(<sid>undercursor(1))<cr>
+	nnoremap <nowait> <buffer>  X        <cmd>call <sid>openbyname(1)<cr>
+	nnoremap <nowait> <buffer>  gf       <cmd>call <sid>shellcmd('file', <sid>undercursor(1))<cr>
+	nnoremap <nowait> <buffer>  gs       <cmd>call <sid>shellcmd('stat', <sid>undercursor(1))<cr>
 	nnoremap <nowait> <buffer>  T        <cmd>call <sid>openterminal(0)<cr>
 	nnoremap <nowait> <buffer>  U        <cmd>call <sid>openterminal(1)<cr>
+	nnoremap <nowait> <buffer>  c        <cmd>call <sid>cmdundercursor()<cr>
+	nnoremap <nowait> <buffer>  d        <cmd>call <sid>newdir()<cr>
 	nnoremap <nowait> <buffer>  l        <cmd>call <sid>descenddir(<sid>undercursor(0), 1)<cr>
 	nnoremap <nowait> <buffer>  <right>  <cmd>call <sid>descenddir(<sid>undercursor(0), 1)<cr>
 	nnoremap <nowait> <buffer>  gl       <cmd>call <sid>descenddir(<sid>undercursor(0), 0)<cr>
@@ -2055,39 +2050,38 @@ fun! s:definemapcmdautocmd()  " {{{
 	nnoremap <nowait> <buffer>  zm       <cmd>call <sid>foldbydepth(v:count1)<cr>
 	nnoremap <nowait> <buffer>  zM       <cmd>call <sid>foldbydepth(-1)<cr>
 	nnoremap <nowait> <buffer>  zo       <cmd>call <sid>unfolddirrecursively(v:count1)<cr>
-	nnoremap <nowait> <buffer>  c        <cmd>call <sid>cmdundercursor()<cr>
-	nnoremap <nowait> <buffer>  x        <cmd>call <sid>openexternal(<sid>undercursor(1))<cr>
-	nnoremap <nowait> <buffer>  X        <cmd>call <sid>openbyname(1)<cr>
-	nnoremap <nowait> <buffer>  gs       <cmd>call <sid>statcmd(<sid>undercursor(1))<cr>
-	nnoremap <nowait> <buffer>  gf       <cmd>call <sid>filecmd(<sid>undercursor(1))<cr>
+	nnoremap <nowait> <buffer>  <c-l>    <cmd>call <sid>refreshtree(0)<cr><c-l>
+	nnoremap <nowait> <buffer>  <c-r>    <cmd>call <sid>refreshtree(1)<cr>
+	nnoremap <nowait> <buffer>  S        <cmd>call <sid>setsortmethod()<cr>
 	nnoremap <nowait> <buffer>  gr       <cmd>call <sid>togglesortreverse()<cr>
 	nnoremap <nowait> <buffer>  gR       <cmd>call <sid>toggleusesortrules()<cr>
-	nnoremap <nowait> <buffer>  S        <cmd>call <sid>setsortmethod()<cr>
 	nnoremap <nowait> <buffer>  gS       <cmd>call <sid>setsortorder()<cr>
 	nnoremap <nowait> <buffer>  gi       <cmd>call <sid>setignorecase()<cr>
 	nnoremap <nowait> <buffer>  gh       <cmd>call <sid>toggleshowhidden()<cr>
 	nnoremap <nowait> <buffer>  gG       <cmd>call <sid>togglerespectgitignore()<cr>
 	nnoremap <nowait> <buffer>  gd       <cmd>call <sid>setskipfilterdirs()<cr>
 	nnoremap <nowait> <buffer>  gF       <cmd>call <sid>printfilters()<cr>
-	nnoremap <nowait> <buffer>  <c-l>    <cmd>call <sid>refreshtree(0)<cr><c-l>
-	nnoremap <nowait> <buffer>  <c-r>    <cmd>call <sid>refreshtree(1)<cr>
+	nnoremap <nowait> <buffer>  ,        zh
+	nnoremap <nowait> <buffer>  .        zl
+	nnoremap <nowait> <buffer>  <        zH
+	nnoremap <nowait> <buffer>  >        zL
 	nnoremap <nowait> <buffer>  i        <cmd>call <sid>mark([line('.')])<cr>
 	nnoremap <nowait> <buffer>  I        <cmd>call <sid>resetmarked()<cr>
-	nnoremap <nowait> <buffer>  r        <cmd>call <sid>renamemarked()<cr>
-	nnoremap <nowait> <buffer>  R        <cmd>call <sid>renametree()<cr>
-	nnoremap <nowait> <buffer>  D        <cmd>call <sid>deletemarked(0)<cr>
-	nnoremap <nowait> <buffer>  <del>    <cmd>call <sid>deletemarked(0)<cr>
 	nnoremap <nowait> <buffer>  y        <cmd>call <sid>yankmarked()<cr>
 	nnoremap <nowait> <buffer>  Y        <cmd>call <sid>resetyanked()<cr>
+	nnoremap <nowait> <buffer>  D        <cmd>call <sid>deletemarked(0)<cr>
+	nnoremap <nowait> <buffer>  <del>    <cmd>call <sid>deletemarked(0)<cr>
+	nnoremap <nowait> <buffer>  zD       <cmd>call <sid>deletemarked(1)<cr>
+	nnoremap <nowait> <buffer>  <s-del>  <cmd>call <sid>deletemarked(1)<cr>
 	nnoremap <nowait> <buffer>  p        <cmd>call <sid>pastemarked(0, 0)<cr>
-	nnoremap <nowait> <buffer>  P        <cmd>call <sid>pastemarked(0, 1)<cr>
 	nnoremap <nowait> <buffer>  zp       <cmd>call <sid>pastemarked(1, 0)<cr>
+	nnoremap <nowait> <buffer>  P        <cmd>call <sid>pastemarked(0, 1)<cr>
 	nnoremap <nowait> <buffer>  zP       <cmd>call <sid>pastemarked(1, 1)<cr>
 	nnoremap <nowait> <buffer>  C        <nop>
 	nnoremap <nowait> <buffer>  Cp       <cmd>call <sid>movemarked(0)<cr>
 	nnoremap <nowait> <buffer>  CP       <cmd>call <sid>movemarked(1)<cr>
-	nnoremap <nowait> <buffer>  zD       <cmd>call <sid>deletemarked(1)<cr>
-	nnoremap <nowait> <buffer>  <s-del>  <cmd>call <sid>deletemarked(1)<cr>
+	nnoremap <nowait> <buffer>  r        <cmd>call <sid>renamemarked()<cr>
+	nnoremap <nowait> <buffer>  R        <cmd>call <sid>renametree()<cr>
 	nnoremap <nowait> <buffer>  <c-n>    <cmd>call <sid>gotomarked(0)<cr>
 	nnoremap <nowait> <buffer>  <c-p>    <cmd>call <sid>gotomarked(1)<cr>
 	nnoremap <nowait> <buffer>  b        <nop>
