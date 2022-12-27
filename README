@@ -52,7 +52,7 @@ Features
  * One primary filemanager buffer per tab and however many auxiliary ones are
    allowed.
 
-However, the are some things filemanager is not:
+However, there are some things filemanager is not:
 
   * It's not the fastest file manager in the world,
 
@@ -88,18 +88,18 @@ Quick start
 The main filemanager mappings and commands include
 
    Mapping     Action
-     --------------- File operations & shell commands ---------------
-      <cr>     Open a file or fold/unfold a directory
+   ---------------- File operations & shell commands ----------------
+     Enter     Open a file or fold/unfold a directory
          O     Open a file in a maximized window
          s     Open a file in a horizontal split
          a     Open a file in a vertical split
          f     Open a file/directory by name
          F     Find and open a file in 'path'
          x     Open a file in an external program
-         T     Open terminal in the tree root
+         T     Open terminal in the tree root directory
          U     Open terminal in the directory under the cursor
          c     Run a shell command in the directory under the cursor
-    --------------------- Directory navigation ---------------------
+   ---------------------- Directory navigation ----------------------
          d     Create a new directory
          l     Descend one directory deeper
          h     Go to the parent directory
@@ -107,13 +107,13 @@ The main filemanager mappings and commands include
         zm     Fold deepest unfolded directories
         zo     Unfold the directory under the cursor recursively
     CTRL-L     Refresh the directory tree manually
-    ------------------ Buffer settings & operations -----------------
+   ------------------ Buffer settings & operations ------------------
          S     Sort the directory tree by name or time
         gr     Toggle reverse sorting order
         gh     Toggle showing hidden files
         gG     Toggle showing files ignored by Git
-    ----------------------- Selecting files ------------------------
-         i     Mark/unmark item under the cursor
+   ------------------------ Selecting files -------------------------
+         i     Mark/unmark items under the cursor
          I     Unmark everything
          y     Yank marked/visually selected items
          Y     Unyank marked/visually selected items
@@ -123,9 +123,9 @@ The main filemanager mappings and commands include
         Cp     Move marked items under the cursor
         CP     Move yanked items under the cursor
          r     Rename marked items
-         R     Rename files by editing tree
-    ---------------------- Bookmark operations ---------------------
-     b<cr>     Print saved bookmarks
+         R     Rename files by editing the directory tree
+   ---------------------- Bookmark operations -----------------------
+   b Enter     Print saved bookmarks
    b{name}     Restore bookmark {name}
    B{name}     Save current state to bookmark {name}
 
