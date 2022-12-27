@@ -976,7 +976,7 @@ The variables are read on Vim startup, so run time changes have no effects.
                 undefined in either the current session or file.
                 Location of the file:
                 For Vim:    `~/.vim/.filemanagerbookmarks`
-                For Neovim: `stdpath("cache")/filemanagerbookmarks`
+                For Neovim: `stdpath("data")/filemanager/bookmarks`
                 See |filemanager-bookmarkfile| for more details.
                 See |filemanager-bookmarks| for an overview of functionality.
 
@@ -1347,7 +1347,7 @@ filemanager saves bookmarks in a specific file to store them between separate
 Vim sessions or share them between parallel ones. The bookmark file is used
 only when |filemanager-usebookmarkfile| is true. Its location is
                  `~/.vim/.filemanagerbookmarks`         for Vim
-        `stdpath("cache")/filemanagerbookmarks`         for Neovim
+        `stdpath("data")/filemanager/bookmarks`         for Neovim
 
 filemanager automatically writes bookmarks on Vim exit and loads them at Vim
 startup.

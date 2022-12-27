@@ -69,24 +69,17 @@ To install it, use a plugin manager of your choosing.
 
 Alternatively, if you would like to manage the plugin yourself, run
 
-    $ make install-vim     #  or make install-neovim
-    $ make uninstall-vim   #  or make uninstall-neovim
+    $ git clone --depth 1 https://github.com/ehhov/filemanager \
+          ~/.vim/pack/user/start/filemanager
+    $ vim -u NONE -c 'helptags ALL' -c 'quit'
 
-to install and uninstall the plugin. Or manually copy
+for Vim or
 
-    plugin/filemanager.vim
-    syntax/filemanager.vim
-    doc/filemanager.txt
+    $ git clone --depth 1 https://github.com/ehhov/filemanager \
+          ~/.local/share/nvim/site/pack/user/start/filemanager
+    $ nvim -u NONE -c 'helptags ALL' -c 'quit'
 
-into your local run time directory and run (in Vim or Neovim)
-
-    :helptags ~/.vim/doc
-
-or
-
-    :helptags ~/.config/nvim/doc
-
-for Vim and Neovim, respectively.
+for Neovim.
 
 
 Quick start

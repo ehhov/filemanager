@@ -59,7 +59,12 @@ let s:seppat = "'"     " in case separator is a special character
 " Just <abuf> doesn't work. More autocmds in s:initialize() and elsewhere
 aug filemanager
 	au!
-	au VimEnter           *  silent! au! FileExplorer
+	" Makes difference when the plugin is put under pack/*
+	if exists('#FileExplorer')
+		silent! au! FileExplorer
+	else
+		au VimEnter   *  silent! au! FileExplorer
+	endif
 	au VimEnter,BufEnter  *  call s:enter(expand('<afile>:p'), str2nr(expand('<abuf>')))
 	if s:usebookmarkfile
 		au VimEnter     *  call extend(s:bookmarks, s:loadbookmarkfile())
@@ -94,7 +99,7 @@ let s:bookmarknames = "'".'"0123456789qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGH
 let s:bookmarknames = map(range(len(s:bookmarknames)), 's:bookmarknames[v:val]')
 if s:usebookmarkfile
 	if has('nvim')
-		let s:bookmarkfile = stdpath('cache').'/filemanagerbookmarks'
+		let s:bookmarkfile = stdpath('data').'/filemanager/bookmarks'
 	else
 		let s:bookmarkfile = getenv('HOME').'/.vim/.filemanagerbookmarks'
 	endif
