@@ -4,9 +4,9 @@ To do:
 
   * Find out the minimum required versions of Vim and Neovim.
 
-  * Add documentation.
-
   * Think of optimizations for sorting by name.
+
+  * Solve broken syntax highlighting after applying color schemes.
 
 
 Known bugs:
@@ -16,10 +16,11 @@ Known bugs:
 
   * Vim's rename() fails to rename missing symlinks.
 
-  * Attempt to move directory inside itself using Vim's rename() not
-    only fails but creates an empty executable file at destination path.
+  * An attempt to move a directory inside itself using Vim's rename()
+    not only fails but creates an empty executable file at the
+    destination path.
 
-  * Timestamps fail when changes occur in less than a second.
+  * Timestamps fail when changes occur within less than a second.
 
   * Searching for patterns like \.txt$ fails because of the s:separator
-    and file type indicator at the end.
+    and file type indicators at the end.
