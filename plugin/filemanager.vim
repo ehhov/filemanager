@@ -832,7 +832,7 @@ fun! s:writebookmarks(overwrite)  " {{{
 	else
 		let l:bookmarks = filter(copy(s:bookmarks), 'v:key == "" || index(s:bookmarknames, v:val) == -1')
 	endif
-	let l:bookmarks = a:overwrite ? l:bookmarks ? extend(s:loadbookmarkfile(), l:bookmarks)
+	let l:bookmarks = a:overwrite ? l:bookmarks : extend(s:loadbookmarkfile(), l:bookmarks)
 	let l:err = 1
 	try
 		if !s:pathexists(fnamemodify(s:bookmarkfile, ':h'), 1)
